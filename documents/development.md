@@ -1,0 +1,65 @@
+# Development
+
+## Project Structure
+
+```
+src/
+├── core/                # Shared foundation (venomous-datasource/core)
+│   ├── index.ts         # Subpath entry — re-exports all public API
+│   ├── interfaces/      # TabularConnector, FileConnector
+│   ├── types/           # Auth, pagination, query, result types
+│   ├── errors/          # VenomousError and subclasses
+│   └── utils/           # Path, sanitize, pagination, CSV/JSON parser utilities
+├── bigquery/            # BigQuery connector (venomous-datasource/bigquery)
+│   ├── index.ts         # Subpath entry — exports createBigQueryConnector
+│   ├── connector.ts     # TabularConnector implementation
+│   ├── auth.ts          # Auth resolution + resolveProjectId
+│   └── types.ts         # BigQueryOptions, ProjectInfo, DatasetInfo
+├── s3/                  # S3 connector (venomous-datasource/s3)
+│   ├── index.ts         # Subpath entry — exports createS3Connector
+│   ├── connector.ts     # FileConnector implementation
+│   ├── auth.ts          # Auth resolution
+│   ├── path.ts          # S3 path utilities
+│   └── types.ts         # S3Options
+├── gcs/                 # GCS connector (venomous-datasource/gcs)
+│   ├── index.ts         # Subpath entry — exports createGCSConnector
+│   ├── connector.ts     # FileConnector implementation
+│   ├── auth.ts          # Auth resolution
+│   ├── path.ts          # GCS path utilities
+│   └── types.ts         # GCSOptions
+├── google-sheets/       # Google Sheets connector (venomous-datasource/google-sheets)
+│   ├── index.ts         # Subpath entry — exports createSheetsConnector
+│   ├── connector.ts     # TabularConnector implementation
+│   ├── auth.ts          # Auth resolution
+│   └── types.ts         # SheetsOptions
+└── azure-blob-storage/  # Azure Blob connector (venomous-datasource/azure-blob-storage)
+    ├── index.ts         # Subpath entry — exports createAzureBlobConnector
+    ├── connector.ts     # FileConnector implementation
+    ├── auth.ts          # Auth resolution (async, dynamic import for @azure/identity)
+    ├── path.ts          # Azure Blob path utilities
+    └── types.ts         # AzureBlobOptions
+```
+
+Each connector is a subpath export (`venomous-datasource/bigquery`, etc.) with its own peer dependency, so users only install what they use.
+
+## Commands
+
+| Command                 | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| `npm run build`         | Build all modules (tsdown)                         |
+| `npm test`              | Run tests with coverage (vitest)                   |
+| `npm run lint`          | Lint source files (eslint)                         |
+| `npm run lint:fix`      | Lint and auto-fix                                  |
+| `npm run format`        | Format source files (prettier)                     |
+| `npm run format:check`  | Check formatting without writing                   |
+| `npm run check:type`    | Type-check without emitting (tsc --noEmit)         |
+| `npm run check`         | Run format check + lint + type check (all at once) |
+
+## Tech Stack
+
+- **Runtime:** Node.js >= 20.19
+- **Language:** TypeScript 5.5+
+- **Build:** tsdown
+- **Test:** vitest
+- **Lint:** eslint 9 + @typescript-eslint
+- **Format:** prettier
