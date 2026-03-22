@@ -31,13 +31,13 @@ const config: UserConfig[] = [
   },
   {
     ...shared,
-    entry: ['src/sheets/index.ts'],
-    outDir: 'dist/sheets',
+    entry: ['src/google-sheets/index.ts'],
+    outDir: 'dist/google-sheets',
   },
   {
     ...shared,
-    entry: ['src/azure-blob/index.ts'],
-    outDir: 'dist/azure-blob',
+    entry: ['src/azure-blob-storage/index.ts'],
+    outDir: 'dist/azure-blob-storage',
   },
 ];
 

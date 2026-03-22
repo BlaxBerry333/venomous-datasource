@@ -21,13 +21,13 @@
       "import": "./dist/gcs/index.js",
       "types": "./dist/gcs/index.d.ts"
     },
-    "./sheets": {
-      "import": "./dist/sheets/index.js",
-      "types": "./dist/sheets/index.d.ts"
+    "./google-sheets": {
+      "import": "./dist/google-sheets/index.js",
+      "types": "./dist/google-sheets/index.d.ts"
     },
-    "./azure-blob": {
-      "import": "./dist/azure-blob/index.js",
-      "types": "./dist/azure-blob/index.d.ts"
+    "./azure-blob-storage": {
+      "import": "./dist/azure-blob-storage/index.js",
+      "types": "./dist/azure-blob-storage/index.d.ts"
     }
   },
   "files": [
