@@ -367,6 +367,127 @@ await connector.remove('Sheet1', {
 
 ---
 
+## Firebase Firestore
+
+**Type:** Document (`DocumentConnector`)
+**Import:** `venomous-datasource/firestore`
+**Peer dependencies:** `firebase-admin`
+
+> Firestore uses `DocumentConnector` — a separate interface from `TabularConnector`. Documents use `{ id, data }` model where ID is metadata, not part of the document content.
+
+### Options
+
+| Option       | Type     | Required | Description                                                                |
+| ------------ | -------- | -------- | -------------------------------------------------------------------------- |
+| `projectId`  | `string` | No       | Google Cloud project ID. Inferred from auth credentials if omitted         |
+| `databaseId` | `string` | No       | Firestore database ID. Defaults to `'(default)'` (multi-database support)  |
+
+### Authentication
+
+| Type                   | Fields        | Description                               |
+| ---------------------- | ------------- | ----------------------------------------- |
+| `auto` (default)       | —             | Application Default Credentials (ADC)     |
+| `service-account`      | `keyFilePath` | Path to service account JSON key file     |
+| `service-account-json` | `credentials` | Inline service account credentials object |
+
+### Usage
+
+```typescript
+import { createFirestoreConnector } from 'venomous-datasource/firestore';
+
+const connector = createFirestoreConnector({
+  projectId: 'my-project',
+});
+
+await connector.connect();
+```
+
+#### List collections
+
+```typescript
+const collections = await connector.collections();
+// [{ name: 'users' }, { name: 'orders' }, ...]
+```
+
+> Only top-level collections are listed. Empty collections (no documents) are not returned — this is Firestore behavior.
+
+#### Preview documents
+
+```typescript
+const preview = await connector.peek('users', { rows: 5 });
+console.log(preview.data);   // Document[] — [{ id: 'alice', data: { name: 'Alice', age: 30 } }, ...]
+console.log(preview.fields); // FieldInfo[] — inferred from sampled docs
+```
+
+> Field types are inferred from document values: `STRING`, `NUMBER`, `BOOLEAN`, `TIMESTAMP`, `GEOPOINT`, `REFERENCE`, `BYTES`, `ARRAY`, `MAP`.
+
+#### Get document by ID
+
+```typescript
+const doc = await connector.getById('users', 'alice');
+// { id: 'alice', data: { name: 'Alice', age: 30 } }
+// Returns undefined if not found
+```
+
+#### Query with server-side filtering
+
+```typescript
+const result = await connector.find('users', {
+  filter: [
+    { field: 'age', operator: 'gt', value: 18 },
+    { field: 'status', operator: 'eq', value: 'active' },
+  ],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  page: { size: 20 },
+});
+
+console.log(result.data);       // Document[]
+console.log(result.hasMore);    // boolean
+console.log(result.nextCursor); // pass to next request
+```
+
+> `find()` uses Firestore server-side filtering. Complex queries may require composite indexes — Firestore returns an error with an index creation link if missing.
+
+#### Insert documents
+
+```typescript
+const result = await connector.insert('users', [
+  { id: 'bob', data: { name: 'Bob', age: 25 } },   // explicit ID
+  { data: { name: 'Charlie', age: 35 } },            // auto-generated ID
+]);
+console.log(result.insertedIds); // ['bob', 'auto-generated-id']
+```
+
+> Document ID must not contain `/`. Documents are written in batches of 500 (Firestore limit).
+
+#### Update / Delete documents
+
+```typescript
+// Update documents matching filter
+await connector.update('users', {
+  filter: [{ field: 'status', operator: 'eq', value: 'inactive' }],
+  set: { status: 'archived' },
+});
+
+// Delete documents matching filter
+await connector.remove('users', {
+  filter: [{ field: 'status', operator: 'eq', value: 'archived' }],
+});
+```
+
+> Empty filter is rejected for safety (`VENOMOUS_EMPTY_FILTER`). Uses query-then-modify pattern — for large result sets (tens of thousands+), consider batching at the application level.
+
+#### Limitations
+
+| Limitation     | Details |
+| -------------- | ------- |
+| No `sql()`     | Not part of `DocumentConnector` interface |
+| No `like`      | Not in `DocFilterOperator` — Firestore has no regex/LIKE capability |
+| `in` max 30    | Firestore limits `in` queries to 30 values |
+| Server-side    | Complex queries may require composite indexes |
+
+---
+
 ## Azure Blob Storage
 
 **Type:** File (`FileConnector`)

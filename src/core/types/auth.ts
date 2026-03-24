@@ -62,3 +62,17 @@ export type AzureBlobAuth =
  * Union of all file data source auth types.
  */
 export type FileAuth = S3Auth | GCSAuth | AzureBlobAuth;
+
+/**
+ * Firebase Firestore authentication options (discriminated union).
+ * Same auth modes as BigQuery/GCS/Sheets (Google service account based).
+ */
+export type FirestoreAuth =
+  | BaseAuth
+  | { readonly type: 'service-account'; readonly keyFilePath: string }
+  | { readonly type: 'service-account-json'; readonly credentials: object };
+
+/**
+ * Union of all document data source auth types.
+ */
+export type DocumentAuth = FirestoreAuth;

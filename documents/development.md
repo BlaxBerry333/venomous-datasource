@@ -6,7 +6,7 @@
 src/
 ├── core/                # Shared foundation (venomous-datasource/core)
 │   ├── index.ts         # Subpath entry — re-exports all public API
-│   ├── interfaces/      # TabularConnector, FileConnector
+│   ├── interfaces/      # TabularConnector, FileConnector, DocumentConnector
 │   ├── types/           # Auth, pagination, query, result types
 │   ├── errors/          # VenomousError and subclasses
 │   └── utils/           # Path, sanitize, pagination, CSV/JSON parser utilities
@@ -32,6 +32,11 @@ src/
 │   ├── connector.ts     # TabularConnector implementation
 │   ├── auth.ts          # Auth resolution
 │   └── types.ts         # SheetsOptions
+├── firestore/           # Firestore connector (venomous-datasource/firestore)
+│   ├── index.ts         # Subpath entry — exports createFirestoreConnector
+│   ├── connector.ts     # DocumentConnector implementation
+│   ├── auth.ts          # Auth resolution (async, dynamic import for firebase-admin)
+│   └── types.ts         # FirestoreOptions
 └── azure-blob-storage/  # Azure Blob connector (venomous-datasource/azure-blob-storage)
     ├── index.ts         # Subpath entry — exports createAzureBlobConnector
     ├── connector.ts     # FileConnector implementation

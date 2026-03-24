@@ -5,8 +5,10 @@ export type {
   GCSAuth,
   SheetsAuth,
   AzureBlobAuth,
+  FirestoreAuth,
   TabularAuth,
   FileAuth,
+  DocumentAuth,
 } from './auth.js';
 
 export type { PageOptions, PageResult } from './pagination.js';
@@ -35,3 +37,22 @@ export type {
   DeleteResult,
   WriteResult,
 } from './result.js';
+
+export type {
+  Document,
+  DocumentInput,
+  CollectionInfo,
+  FieldInfo,
+  DocFilterOperator,
+  DocFilterCondition,
+  DocFilter,
+  DocOrderByClause,
+  DocFindOptions,
+  DocPeekOptions,
+  DocPeekResult,
+  DocInsertResult,
+  DocUpdateResult,
+  DocDeleteResult,
+  DocUpdateOptions,
+  DocRemoveOptions,
+} from './document.js';

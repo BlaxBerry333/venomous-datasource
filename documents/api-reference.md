@@ -48,6 +48,42 @@ Extends `TabularConnector<SheetsAuth>`. Created via `createSheetsConnector(optio
 
 > Schema types are inferred from cell values (100-row sampling): `NUMBER`, `BOOLEAN`, `DATE`, `STRING`. All columns have `nullable: true`.
 
+### DocumentConnector\<TAuth\>
+
+Interface for document-based data source connectors (e.g., Firestore, future MongoDB/DynamoDB).
+
+| Method        | Signature                                                   | Description                                  |
+| ------------- | ----------------------------------------------------------- | -------------------------------------------- |
+| `connect`     | `(auth?: TAuth) => Promise<void>`                           | Connect using provided or `auto` credentials |
+| `disconnect`  | `() => Promise<void>`                                       | Release all resources                        |
+| `collections` | `() => Promise<CollectionInfo[]>`                           | List available collections                   |
+| `peek`        | `(collection, options?) => Promise<DocPeekResult>`          | Preview first N documents                    |
+| `getById`     | `(collection, id) => Promise<Document \| undefined>`        | Get a single document by ID                  |
+| `find`        | `(collection, options?) => Promise<PageResult<Document>>`   | Query with server-side filtering             |
+| `insert` \*   | `(collection, docs) => Promise<DocInsertResult>`            | Insert documents                             |
+| `update` \*   | `(collection, options) => Promise<DocUpdateResult>`         | Update documents matching filter             |
+| `remove` \*   | `(collection, options) => Promise<DocDeleteResult>`         | Delete documents matching filter             |
+
+> \* Optional — connectors may omit if the data source is read-only.
+
+Key differences from `TabularConnector`:
+- No `sql()` method — document databases don't support SQL
+- Uses `Document = { id, data }` instead of `Row` — ID is metadata, not a column
+- Uses `DocFilter` / `DocFilterOperator` instead of `WhereClause` — no `like` operator
+- `collections()` returns `CollectionInfo` (name only) — no schema or row count
+
+### FirestoreConnector
+
+Extends `DocumentConnector<FirestoreAuth>`. Created via `createFirestoreConnector(options?)`.
+
+| Limitation     | Details |
+| -------------- | ------- |
+| `in`           | Maximum 30 values per query (Firestore limit) |
+| `find()`       | Server-side filtering; complex queries may require composite indexes |
+| `update()` / `remove()` | Query-then-modify pattern; empty filter rejected (`VENOMOUS_EMPTY_FILTER`) |
+
+> Field types inferred from sampled documents: `STRING`, `NUMBER`, `BOOLEAN`, `TIMESTAMP`, `GEOPOINT`, `REFERENCE`, `BYTES`, `ARRAY`, `MAP`. Documents are written in batches of 500.
+
 ### FileConnector\<TAuth\>
 
 Interface for file-based data source connectors (e.g., S3, GCS).
@@ -91,6 +127,12 @@ type GCSAuth =
   | { type: 'service-account-json'; credentials: object };
 
 type SheetsAuth =
+  | BaseAuth
+  | { type: 'service-account'; keyFilePath: string }
+  | { type: 'service-account-json'; credentials: object };
+
+// Firestore (DocumentConnector — same Google auth modes)
+type FirestoreAuth =
   | BaseAuth
   | { type: 'service-account'; keyFilePath: string }
   | { type: 'service-account-json'; credentials: object };
@@ -240,7 +282,7 @@ VenomousError
 | Property    | Type       | Description                                                 |
 | ----------- | ---------- | ----------------------------------------------------------- |
 | `code`      | `string`   | Machine-readable code (e.g., `VENOMOUS_AUTH_FAILED`)        |
-| `connector` | `string?`  | Connector that produced the error (`bigquery`, `s3`, `gcs`, `google-sheets`, `azure-blob-storage`) |
+| `connector` | `string?`  | Connector that produced the error (`bigquery`, `s3`, `gcs`, `google-sheets`, `firestore`, `azure-blob-storage`) |
 | `message`   | `string`   | Human-readable description                                  |
 | `cause`     | `unknown?` | Original error from the underlying SDK                      |
 

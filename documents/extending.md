@@ -6,13 +6,13 @@ Build custom connectors that integrate seamlessly with the venomous-datasource e
 
 ## Overview
 
-The `venomous-datasource/core` module exports everything you need: interfaces, types, error classes, and utility functions. Your connector just needs to implement `TabularConnector` or `FileConnector`.
+The `venomous-datasource/core` module exports everything you need: interfaces, types, error classes, and utility functions. Your connector just needs to implement `TabularConnector`, `FileConnector`, or `DocumentConnector`.
 
 ## Requirements
 
 A well-behaved connector must:
 
-1. **Implement `TabularConnector` or `FileConnector`** from `venomous-datasource/core`
+1. **Implement `TabularConnector`, `FileConnector`, or `DocumentConnector`** from `venomous-datasource/core`
 2. **Support `{ type: 'auto' }` authentication** — delegate to the native SDK's credential chain
 3. **Wrap native SDK errors as `VenomousError` subclasses** — don't leak raw SDK errors
 4. **Redact credentials** in logs and error output (use the provided `redactAuth()` utility)

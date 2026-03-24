@@ -39,6 +39,11 @@ const config: UserConfig[] = [
     entry: ['src/azure-blob-storage/index.ts'],
     outDir: 'dist/azure-blob-storage',
   },
+  {
+    ...shared,
+    entry: ['src/firestore/index.ts'],
+    outDir: 'dist/firestore',
+  },
 ];
 
 export default config;

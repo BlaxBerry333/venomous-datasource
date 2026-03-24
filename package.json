@@ -28,6 +28,10 @@
     "./azure-blob-storage": {
       "import": "./dist/azure-blob-storage/index.js",
       "types": "./dist/azure-blob-storage/index.d.ts"
+    },
+    "./firestore": {
+      "import": "./dist/firestore/index.js",
+      "types": "./dist/firestore/index.d.ts"
     }
   },
   "files": [
@@ -52,7 +56,8 @@
     "@google-cloud/storage": "^7.14.0",
     "googleapis": "^171.0.0",
     "@azure/storage-blob": "^12.25.0",
-    "@azure/identity": "^4.6.0"
+    "@azure/identity": "^4.6.0",
+    "firebase-admin": "^13.0.0"
   },
   "peerDependenciesMeta": {
     "@google-cloud/bigquery": {
@@ -78,6 +83,9 @@
     },
     "@azure/identity": {
       "optional": true
+    },
+    "firebase-admin": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -93,6 +101,7 @@
     "eslint": "^9.0.0",
     "@azure/identity": "^4.6.0",
     "@azure/storage-blob": "^12.25.0",
+    "firebase-admin": "^13.0.0",
     "googleapis": "^171.4.0",
     "prettier": "^3.0.0",
     "tsdown": "^0.9.0",

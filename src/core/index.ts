@@ -1,6 +1,7 @@
 // Interfaces
 export type { TabularConnector } from './interfaces/tabular-connector.js';
 export type { FileConnector } from './interfaces/file-connector.js';
+export type { DocumentConnector } from './interfaces/document-connector.js';
 
 // Types
 export type {
@@ -10,8 +11,10 @@ export type {
   GCSAuth,
   SheetsAuth,
   AzureBlobAuth,
+  FirestoreAuth,
   TabularAuth,
   FileAuth,
+  DocumentAuth,
 } from './types/auth.js';
 
 export type { PageOptions, PageResult } from './types/pagination.js';
@@ -40,6 +43,25 @@ export type {
   DeleteResult,
   WriteResult,
 } from './types/result.js';
+
+export type {
+  Document,
+  DocumentInput,
+  CollectionInfo,
+  FieldInfo,
+  DocFilterOperator,
+  DocFilterCondition,
+  DocFilter,
+  DocOrderByClause,
+  DocFindOptions,
+  DocPeekOptions,
+  DocPeekResult,
+  DocInsertResult,
+  DocUpdateResult,
+  DocDeleteResult,
+  DocUpdateOptions,
+  DocRemoveOptions,
+} from './types/document.js';
 
 // Error classes
 export { VenomousError } from './errors/base.js';

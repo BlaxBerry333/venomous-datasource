@@ -5,7 +5,7 @@
 
 Unified multi-datasource connection SDK for Node.js
 
-One consistent API for both **tabular** (BigQuery, Google Sheets) and **file-based** (S3, GCS, Azure Blob) data sources. Zero-config auth, streaming-first (`AsyncIterable` / `ReadableStream`), path-traversal prevention, parameterized queries, credential redaction, CJK/Unicode path support, strict TypeScript types, and subpath exports — only install the SDKs you actually use.
+One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Firestore), and **file-based** (S3, GCS, Azure Blob) data sources. Zero-config auth, streaming-first (`AsyncIterable` / `ReadableStream`), path-traversal prevention, parameterized queries, credential redaction, CJK/Unicode path support, strict TypeScript types, and subpath exports — only install the SDKs you actually use.
 
 ## Supported Data Sources
 
@@ -15,6 +15,7 @@ One consistent API for both **tabular** (BigQuery, Google Sheets) and **file-bas
 | BigQuery             | Tabular | `venomous-datasource/bigquery`   | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |   ✅   |
 | Google Cloud Storage | File    | `venomous-datasource/gcs`        | `@google-cloud/storage`                                     |   ✅   |
 | Google Sheets        | Tabular | `venomous-datasource/google-sheets`       | `googleapis`                                                |   ✅   |
+| Firebase Firestore   | Document| `venomous-datasource/firestore`            | `firebase-admin`                                            |   ✅   |
 | Azure Blob Storage   | File    | `venomous-datasource/azure-blob-storage`  | `@azure/storage-blob` + `@azure/identity`                   |   ✅   |
 
 ## Installation
@@ -31,6 +32,7 @@ npm install googleapis                                              # Google She
 npm install @aws-sdk/client-s3 @aws-sdk/credential-providers        # S3
 npm install @google-cloud/storage                                   # GCS
 npm install @azure/storage-blob @azure/identity                     # Azure Blob
+npm install firebase-admin                                          # Firestore
 ```
 
 ## Quick Start
@@ -199,6 +201,50 @@ const stream = await connector.read('data/report.csv');
 
 await connector.disconnect();
 ```
+
+</details>
+
+<details>
+<summary>Firebase Firestore (Document DB)</summary>
+<br>
+
+```typescript
+import { createFirestoreConnector } from 'venomous-datasource/firestore';
+
+const connector = createFirestoreConnector({
+  projectId: 'my-project',
+});
+
+await connector.connect(); // Uses Application Default Credentials
+
+// List collections
+const collections = await connector.collections();
+
+// Preview first 5 documents
+const preview = await connector.peek('users', { rows: 5 });
+// preview.data = [{ id: 'alice', data: { name: 'Alice', age: 30 } }, ...]
+
+// Get a single document by ID
+const doc = await connector.getById('users', 'alice');
+// { id: 'alice', data: { name: 'Alice', age: 30 } }
+
+// Query with server-side filtering
+const result = await connector.find('users', {
+  filter: [{ field: 'age', operator: 'gt', value: 18 }],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  page: { size: 20 },
+});
+
+// Insert documents (id + data separated)
+await connector.insert('users', [
+  { id: 'bob', data: { name: 'Bob', age: 25 } },
+  { data: { name: 'Charlie', age: 35 } }, // auto-generated ID
+]);
+
+await connector.disconnect();
+```
+
+> Note: Firestore uses `DocumentConnector` (not `TabularConnector`). Documents use `{ id, data }` model — ID is metadata, not part of the document content. `sql()` and `like` operator are not available.
 
 </details>
 
