@@ -765,10 +765,12 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
   }
 
   sql(query: string, params?: unknown[]): AsyncIterable<Row> {
-    const connector = this;
+    const ensureConnected = () => this.ensureConnected();
+    const getClient = () => this.client!;
+    const { location } = this.options;
 
     async function* generate(): AsyncGenerator<Row> {
-      connector.ensureConnected();
+      ensureConnected();
 
       // Convert positional params (?) to named params (@p0, @p1, ...) for BigQuery
       const namedParams: Record<string, unknown> = {};
@@ -826,10 +828,10 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
       }
 
       try {
-        const [job] = await connector.client!.createQueryJob({
+        const [job] = await getClient().createQueryJob({
           query: processedQuery,
           params: namedParams,
-          location: connector.options.location,
+          location,
         });
 
         let pageToken: string | undefined;

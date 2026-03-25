@@ -418,26 +418,26 @@ export class GCSConnector implements FileConnector<GCSAuth> {
 
       const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
       const reader = webStream.getReader();
-      const self = this;
+      const untrack = () => this.untrackStream(controller);
 
       return new ReadableStream<Uint8Array>({
         async pull(ctrl) {
           try {
             const { done, value } = await reader.read();
             if (done) {
-              self.untrackStream(controller);
+              untrack();
               ctrl.close();
             } else {
               ctrl.enqueue(value);
             }
           } catch (err) {
-            self.untrackStream(controller);
+            untrack();
             ctrl.error(err);
           }
         },
         cancel() {
           reader.cancel();
-          self.untrackStream(controller);
+          untrack();
         },
       });
     } catch (err) {

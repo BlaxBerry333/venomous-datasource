@@ -10,6 +10,7 @@
 # AI
 CLAUDE.md
 .claude/
+.tasks/
 _*.md
 
 # Dependencies

@@ -1,4 +1,9 @@
-import type { Firestore, DocumentSnapshot, CollectionReference, Query } from '@google-cloud/firestore';
+import type {
+  Firestore,
+  DocumentSnapshot,
+  CollectionReference,
+  Query,
+} from '@google-cloud/firestore';
 import type {
   DocumentConnector,
   FirestoreAuth,
@@ -492,10 +497,10 @@ export class FirestoreConnector implements DocumentConnector<FirestoreAuth> {
    */
   private ensureConnected(): void {
     if (!this.connected || !this.db) {
-      throw new ConnectionError(
-        'Not connected to Firestore. Call connect() first.',
-        { code: 'VENOMOUS_NOT_CONNECTED', connector: CONNECTOR_NAME }
-      );
+      throw new ConnectionError('Not connected to Firestore. Call connect() first.', {
+        code: 'VENOMOUS_NOT_CONNECTED',
+        connector: CONNECTOR_NAME,
+      });
     }
   }
 }
@@ -510,17 +515,17 @@ export class FirestoreConnector implements DocumentConnector<FirestoreAuth> {
  */
 function validateDocumentId(id: string): void {
   if (!id || id.length === 0) {
-    throw new QueryError(
-      'Document ID must not be empty.',
-      { code: 'VENOMOUS_INVALID_IDENTIFIER', connector: CONNECTOR_NAME }
-    );
+    throw new QueryError('Document ID must not be empty.', {
+      code: 'VENOMOUS_INVALID_IDENTIFIER',
+      connector: CONNECTOR_NAME,
+    });
   }
 
   if (id.includes('/')) {
-    throw new QueryError(
-      `Document ID must not contain "/". Got: "${id}"`,
-      { code: 'VENOMOUS_INVALID_IDENTIFIER', connector: CONNECTOR_NAME }
-    );
+    throw new QueryError(`Document ID must not contain "/". Got: "${id}"`, {
+      code: 'VENOMOUS_INVALID_IDENTIFIER',
+      connector: CONNECTOR_NAME,
+    });
   }
 }
 
@@ -559,19 +564,19 @@ function buildQuery(
     for (const condition of filter) {
       const op = OPERATOR_MAP[condition.operator];
       if (!op) {
-        throw new QueryError(
-          `Unsupported filter operator: "${condition.operator}"`,
-          { code: 'VENOMOUS_INVALID_QUERY', connector: CONNECTOR_NAME }
-        );
+        throw new QueryError(`Unsupported filter operator: "${condition.operator}"`, {
+          code: 'VENOMOUS_INVALID_QUERY',
+          connector: CONNECTOR_NAME,
+        });
       }
 
       // Validate `in` operator element count
       if (condition.operator === 'in') {
         if (!Array.isArray(condition.value)) {
-          throw new QueryError(
-            `"in" operator requires an array value.`,
-            { code: 'VENOMOUS_INVALID_QUERY', connector: CONNECTOR_NAME }
-          );
+          throw new QueryError(`"in" operator requires an array value.`, {
+            code: 'VENOMOUS_INVALID_QUERY',
+            connector: CONNECTOR_NAME,
+          });
         }
         if (condition.value.length > MAX_IN_ELEMENTS) {
           throw new QueryError(
@@ -757,11 +762,13 @@ function inferType(value: unknown): string {
  * @param defaultMessage - Fallback message if the error has none.
  */
 function wrapError(err: unknown, defaultMessage: string): never {
-  if (err instanceof ConnectionError ||
-      err instanceof AuthenticationError ||
-      err instanceof PermissionError ||
-      err instanceof QueryError ||
-      err instanceof NotFoundError) {
+  if (
+    err instanceof ConnectionError ||
+    err instanceof AuthenticationError ||
+    err instanceof PermissionError ||
+    err instanceof QueryError ||
+    err instanceof NotFoundError
+  ) {
     throw err;
   }
 

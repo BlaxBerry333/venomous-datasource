@@ -116,7 +116,7 @@ export function decodeCursor(cursor: string): Record<string, unknown> {
   }
 
   // Remove version field from returned state
-  const { v: _, ...state } = record;
+  const { v: _version, ...state } = record;
   return state;
 }
 

@@ -421,26 +421,26 @@ export class S3Connector implements FileConnector<S3Auth> {
       const sdkWebStream =
         response.Body.transformToWebStream() as unknown as ReadableStream<Uint8Array>;
       const reader = sdkWebStream.getReader();
-      const self = this;
+      const untrack = () => this.untrackStream(controller);
 
       return new ReadableStream<Uint8Array>({
         async pull(ctrl) {
           try {
             const { done, value } = await reader.read();
             if (done) {
-              self.untrackStream(controller);
+              untrack();
               ctrl.close();
             } else {
               ctrl.enqueue(value);
             }
           } catch (err) {
-            self.untrackStream(controller);
+            untrack();
             ctrl.error(err);
           }
         },
         cancel() {
           reader.cancel();
-          self.untrackStream(controller);
+          untrack();
         },
       });
     } catch (err) {

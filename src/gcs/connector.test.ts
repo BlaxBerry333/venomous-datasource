@@ -1,3 +1,4 @@
+import { Readable, PassThrough } from 'node:stream';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GCSConnector } from './connector.js';
 import {
@@ -47,7 +48,6 @@ vi.mock('@google-cloud/storage', () => {
 
 /** Helper: create a mock Node.js Readable stream from content. */
 function createMockNodeStream(content: string) {
-  const { Readable } = require('node:stream');
   return new Readable({
     read() {
       this.push(Buffer.from(content));
@@ -479,14 +479,12 @@ describe('GCSConnector', () => {
       await connector.connect();
 
       // Create streams that never close to keep them tracked
-      const createHangingStream = () => {
-        const { Readable } = require('node:stream');
-        return new Readable({
+      const createHangingStream = () =>
+        new Readable({
           read() {
             /* never push data or null */
           },
         });
-      };
 
       // Open MAX_ACTIVE_STREAMS (10) streams
       for (let i = 0; i < 10; i++) {
@@ -585,7 +583,6 @@ describe('GCSConnector', () => {
       mockExists.mockResolvedValue([true]);
       await connector.connect();
 
-      const { PassThrough } = require('node:stream');
       const writeStream = new PassThrough();
       mockCreateWriteStream.mockReturnValueOnce(writeStream);
 

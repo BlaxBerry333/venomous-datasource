@@ -39,8 +39,7 @@ export async function resolveAuth(auth?: FirestoreAuth): Promise<ResolvedAuth> {
     admin = await import('firebase-admin');
   } catch {
     throw new ConnectionError(
-      'firebase-admin SDK is not installed. ' +
-        'Install it with: npm install firebase-admin',
+      'firebase-admin SDK is not installed. ' + 'Install it with: npm install firebase-admin',
       { connector: CONNECTOR_NAME }
     );
   }
@@ -55,13 +54,14 @@ export async function resolveAuth(auth?: FirestoreAuth): Promise<ResolvedAuth> {
       const raw = readFileSync(auth.keyFilePath, 'utf-8');
       serviceAccount = JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      throw new AuthenticationError(
-        'Service account key file could not be read or parsed.',
-        { connector: CONNECTOR_NAME }
-      );
+      throw new AuthenticationError('Service account key file could not be read or parsed.', {
+        connector: CONNECTOR_NAME,
+      });
     }
     return {
-      credential: admin.credential.cert(serviceAccount as Parameters<typeof admin.credential.cert>[0]),
+      credential: admin.credential.cert(
+        serviceAccount as Parameters<typeof admin.credential.cert>[0]
+      ),
       projectId: (serviceAccount['project_id'] as string) || undefined,
     };
   }
@@ -78,4 +78,3 @@ export async function resolveAuth(auth?: FirestoreAuth): Promise<ResolvedAuth> {
   const _exhaustive: never = auth;
   throw new Error(`Unknown auth type: ${JSON.stringify(_exhaustive)}`);
 }
-

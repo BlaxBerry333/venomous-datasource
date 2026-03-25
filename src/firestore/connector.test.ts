@@ -12,8 +12,6 @@ import {
 // ─── Mock Setup ───────────────────────────────────────────────────────────────
 
 const mockListCollections = vi.fn();
-const mockCollection = vi.fn();
-const mockDoc = vi.fn();
 const mockBatchSet = vi.fn();
 const mockBatchUpdate = vi.fn();
 const mockBatchDelete = vi.fn();
@@ -28,10 +26,6 @@ const mockAppDelete = vi.fn();
 
 // Mock Firestore Query chain
 const mockGet = vi.fn();
-const mockLimit = vi.fn(() => ({ get: mockGet }));
-const mockWhere = vi.fn();
-const mockOrderBy = vi.fn();
-const mockStartAfter = vi.fn();
 
 // Build a chainable query mock
 function createQueryMock() {
@@ -303,11 +297,7 @@ describe('FirestoreConnector', () => {
       ]);
 
       const result = await connector.collections();
-      expect(result).toEqual([
-        { name: 'users' },
-        { name: 'orders' },
-        { name: 'products' },
-      ]);
+      expect(result).toEqual([{ name: 'users' }, { name: 'orders' }, { name: 'products' }]);
     });
 
     it('should return empty array for empty database', async () => {
@@ -497,12 +487,14 @@ describe('FirestoreConnector', () => {
     it('should recursively convert nested objects', async () => {
       await connectConnector(connector);
       const ts = createMockTimestamp('2026-06-01T00:00:00Z');
-      const docs = [createMockSnapshot('doc1', {
-        metadata: {
-          updatedAt: ts,
-          tags: ['a', 'b'],
-        },
-      })];
+      const docs = [
+        createMockSnapshot('doc1', {
+          metadata: {
+            updatedAt: ts,
+            tags: ['a', 'b'],
+          },
+        }),
+      ];
       mockGet.mockResolvedValueOnce({ empty: false, docs });
 
       const result = await connector.peek('collection');
@@ -674,10 +666,14 @@ describe('FirestoreConnector', () => {
       const cursor = encodeCursor({ lastDocPath: 'users/doc5' });
 
       // Mock doc().get() for cursor resolution
-      const mockDocSnapshot = createMockSnapshot('doc5', { name: 'User 5' }, {
-        path: 'users/doc5',
-        exists: true,
-      });
+      const mockDocSnapshot = createMockSnapshot(
+        'doc5',
+        { name: 'User 5' },
+        {
+          path: 'users/doc5',
+          exists: true,
+        }
+      );
       mockFirestoreDb.doc.mockReturnValueOnce({
         get: vi.fn().mockResolvedValueOnce(mockDocSnapshot),
       });
@@ -704,18 +700,14 @@ describe('FirestoreConnector', () => {
         get: vi.fn().mockResolvedValueOnce(mockDocSnapshot),
       });
 
-      await expect(
-        connector.find('users', { page: { cursor } })
-      ).rejects.toThrow(QueryError);
+      await expect(connector.find('users', { page: { cursor } })).rejects.toThrow(QueryError);
     });
 
     it('should throw QueryError when cursor is missing lastDocPath', async () => {
       await connectConnector(connector);
       const cursor = encodeCursor({ someOtherField: 'value' });
 
-      await expect(
-        connector.find('users', { page: { cursor } })
-      ).rejects.toThrow(QueryError);
+      await expect(connector.find('users', { page: { cursor } })).rejects.toThrow(QueryError);
     });
 
     it('should return empty result for empty collection', async () => {
@@ -747,7 +739,12 @@ describe('FirestoreConnector', () => {
 
     it('should return null when document does not exist', async () => {
       await connectConnector(connector);
-      const mockSnapshot = { exists: false, id: 'missing', data: () => null, ref: { id: 'missing', path: 'users/missing' } };
+      const mockSnapshot = {
+        exists: false,
+        id: 'missing',
+        data: () => null,
+        ref: { id: 'missing', path: 'users/missing' },
+      };
       currentColRef.doc.mockReturnValueOnce({
         get: vi.fn().mockResolvedValueOnce(mockSnapshot),
       });
@@ -845,9 +842,9 @@ describe('FirestoreConnector', () => {
 
     it('should throw QueryError for document with empty ID', async () => {
       await connectConnector(connector);
-      await expect(
-        connector.insert('users', [{ id: '', data: { name: 'test' } }])
-      ).rejects.toThrow(QueryError);
+      await expect(connector.insert('users', [{ id: '', data: { name: 'test' } }])).rejects.toThrow(
+        QueryError
+      );
     });
 
     it('should throw QueryError for document with ID containing slash', async () => {
@@ -944,9 +941,7 @@ describe('FirestoreConnector', () => {
   describe('remove', () => {
     it('should throw QueryError for empty filter', async () => {
       await connectConnector(connector);
-      await expect(
-        connector.remove('users', { filter: [] })
-      ).rejects.toThrow(QueryError);
+      await expect(connector.remove('users', { filter: [] })).rejects.toThrow(QueryError);
     });
 
     it('should throw QueryError with VENOMOUS_EMPTY_FILTER code', async () => {
@@ -1250,18 +1245,14 @@ describe('FirestoreConnector', () => {
 
     it('should map ECONNREFUSED in message to ConnectionError', async () => {
       await connectConnector(connector);
-      mockListCollections.mockRejectedValueOnce(
-        new Error('connect ECONNREFUSED 127.0.0.1:8080')
-      );
+      mockListCollections.mockRejectedValueOnce(new Error('connect ECONNREFUSED 127.0.0.1:8080'));
 
       await expect(connector.collections()).rejects.toThrow(ConnectionError);
     });
 
     it('should map ETIMEDOUT in message to ConnectionError', async () => {
       await connectConnector(connector);
-      mockListCollections.mockRejectedValueOnce(
-        new Error('connect ETIMEDOUT 10.0.0.1:443')
-      );
+      mockListCollections.mockRejectedValueOnce(new Error('connect ETIMEDOUT 10.0.0.1:443'));
 
       await expect(connector.collections()).rejects.toThrow(ConnectionError);
     });
@@ -1286,9 +1277,7 @@ describe('FirestoreConnector', () => {
 
     it('should default to QueryError for unknown errors', async () => {
       await connectConnector(connector);
-      mockListCollections.mockRejectedValueOnce(
-        new Error('Some unknown error')
-      );
+      mockListCollections.mockRejectedValueOnce(new Error('Some unknown error'));
 
       await expect(connector.collections()).rejects.toThrow(QueryError);
     });

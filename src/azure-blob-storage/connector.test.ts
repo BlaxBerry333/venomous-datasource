@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AzureBlobConnector } from './connector.js';
 import {
@@ -10,7 +11,6 @@ import {
 } from '../core/index.js';
 
 // Mock Azure SDK
-const mockGetProperties = vi.fn();
 const mockContainerGetProperties = vi.fn();
 const mockDownload = vi.fn();
 const mockUpload = vi.fn();
@@ -46,7 +46,6 @@ vi.mock('./auth.js', () => ({
 
 /** Helper: create a mock Node.js Readable stream from content. */
 function createMockNodeReadable(content: string) {
-  const { Readable } = require('node:stream');
   return new Readable({
     read() {
       this.push(Buffer.from(content));
@@ -152,15 +151,12 @@ describe('AzureBlobConnector', () => {
       mockContainerGetProperties.mockResolvedValue({});
       await connector.connect();
 
-      const createHangingStream = () => {
-        const { Readable } = require('node:stream');
-        const stream = new Readable({
+      const createHangingStream = () =>
+        new Readable({
           read() {
             /* never push */
           },
         });
-        return stream;
-      };
 
       // Open a stream
       const hangingStream = createHangingStream();
@@ -762,14 +758,12 @@ describe('AzureBlobConnector', () => {
       mockContainerGetProperties.mockResolvedValue({});
       await connector.connect();
 
-      const createHangingStream = () => {
-        const { Readable } = require('node:stream');
-        return new Readable({
+      const createHangingStream = () =>
+        new Readable({
           read() {
             /* never push data or null */
           },
         });
-      };
 
       // Open MAX_ACTIVE_STREAMS (10) streams
       for (let i = 0; i < 10; i++) {
