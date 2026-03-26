@@ -20,7 +20,7 @@ import type {
  * @example
  * ```typescript
  * const connector: TabularConnector<BigQueryAuth> = createBigQueryConnector();
- * await connector.connect({ type: 'auto' });
+ * await connector.connect({ credentials: {...} });
  * const tables = await connector.tables();
  * const preview = await connector.peek('my_table', { rows: 5 });
  * await connector.disconnect();
@@ -29,7 +29,7 @@ import type {
 export interface TabularConnector<TAuth extends TabularAuth = TabularAuth> {
   /**
    * Connect to the data source and initialize the client.
-   * If no auth is provided, defaults to `{ type: 'auto' }`.
+   * Behavior when auth is omitted depends on the connector implementation.
    *
    * @param auth - Authentication configuration.
    * @throws {AuthenticationError} When credentials are invalid.

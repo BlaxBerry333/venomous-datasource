@@ -289,12 +289,12 @@ function mapSchemaFields(
  *   projectId: 'my-project',
  *   datasetId: 'my_dataset',
  * });
- * await connector.connect();
+ * await connector.connect({ credentials: {...} });
  * const tables = await connector.tables();
  *
- * // Exploration usage
+ * // Exploration usage (discover projects + datasets)
  * const explorer = createBigQueryConnector();
- * await explorer.connect({ type: 'service-account', keyFilePath: '/path/to/key.json' });
+ * await explorer.connect({ credentials: {...} });
  * const datasets = await explorer.datasets();
  * explorer.useDataset('my_dataset');
  * const tables2 = await explorer.tables();
@@ -385,21 +385,28 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
   /**
    * Connect to BigQuery, initializing the client.
    *
-   * If `projectId` was not provided in constructor options, it will be inferred from:
-   * - `service-account`: the key file's `project_id` field
-   * - `service-account-json`: the credentials object's `project_id` field
-   * - `auto`: the SDK's internal project resolution (e.g., `GOOGLE_CLOUD_PROJECT` env var)
+   * BigQuery requires explicit authentication — `auth` must be provided.
+   * If `projectId` was not provided in constructor options, it will be inferred from
+   * the credentials object's `project_id` field.
    *
    * Calling `connect()` on an already-connected instance will disconnect first (idempotent).
    *
-   * @param auth - Auth configuration (defaults to auto/ADC if undefined).
+   * @param auth - Auth configuration. `type` can be omitted (defaults to `'credentials'`).
+   * @throws {AuthenticationError} if auth is not provided or credentials are invalid.
    * @throws {ConnectionError} if connection fails or projectId cannot be determined.
-   * @throws {AuthenticationError} if credentials are invalid.
    */
   async connect(auth?: BigQueryAuth): Promise<void> {
     // Idempotent: disconnect first if already connected
     if (this.connected) {
       await this.disconnect();
+    }
+
+    // BigQuery requires explicit authentication
+    if (!auth) {
+      throw new AuthenticationError(
+        'BigQuery requires explicit authentication. Use { credentials: {...} }.',
+        { code: 'VENOMOUS_AUTH_REQUIRED', connector: CONNECTOR_NAME }
+      );
     }
 
     const sdkOptions = resolveAuth(auth);
@@ -439,7 +446,7 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
       wrapError(err, 'Failed to connect to BigQuery');
     }
 
-    // Get the actual projectId (auto mode may have it resolved by SDK)
+    // Get the actual projectId from the initialized client
     this.projectId = this.client.projectId;
     if (!this.projectId) {
       this.client = null;
@@ -478,7 +485,7 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
    * @example
    * ```typescript
    * const connector = createBigQueryConnector();
-   * await connector.connect({ type: 'service-account', keyFilePath: '/path/to/key.json' });
+   * await connector.connect({ credentials: {...} });
    *
    * const datasets = await connector.datasets();
    * connector.useDataset(datasets[0].datasetId);
@@ -561,7 +568,7 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
    * @example
    * ```typescript
    * const connector = createBigQueryConnector();
-   * await connector.connect({ type: 'service-account', keyFilePath: '/path/to/key.json' });
+   * await connector.connect({ credentials: {...} });
    * const projects = await connector.projects();
    * console.log(projects); // [{ projectId: 'proj-1', displayName: 'My Project', state: 'ACTIVE' }]
    * ```

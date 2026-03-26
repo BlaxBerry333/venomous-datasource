@@ -9,15 +9,15 @@ One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Fire
 
 ## Supported Data Sources
 
-| Data Source          | Type    | Import Path                      | Required Peer Dependency                                    | Status |
-| -------------------- | ------- | -------------------------------- | ----------------------------------------------------------- | :----: |
-| Amazon S3            | File    | `venomous-datasource/s3`         | `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`      |   ✅   |
-| BigQuery             | Tabular | `venomous-datasource/bigquery`   | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |   ✅   |
-| Google Cloud Storage | File    | `venomous-datasource/gcs`        | `@google-cloud/storage`                                     |   ✅   |
-| Google Sheets        | Tabular | `venomous-datasource/google-sheets`       | `googleapis`                                                |   ✅   |
-| Firebase Firestore   | Document| `venomous-datasource/firestore`            | `firebase-admin`                                            |   ✅   |
-| Azure Blob Storage   | File    | `venomous-datasource/azure-blob-storage`  | `@azure/storage-blob` + `@azure/identity`                   |   ✅   |
-| MongoDB              | Document| `venomous-datasource/mongodb`             | `mongodb`                                                    |   ✅   |
+| Data Source          | Type     | Import Path                              | Required Peer Dependency                                    | Status |
+| -------------------- | -------- | ---------------------------------------- | ----------------------------------------------------------- | :----: |
+| Amazon S3            | File     | `venomous-datasource/s3`                 | `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`      |   ✅   |
+| BigQuery             | Tabular  | `venomous-datasource/bigquery`           | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |   ✅   |
+| Google Cloud Storage | File     | `venomous-datasource/gcs`                | `@google-cloud/storage`                                     |   ✅   |
+| Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |   ✅   |
+| Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |   ✅   |
+| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob` + `@azure/identity`                   |   ✅   |
+| MongoDB              | Document | `venomous-datasource/mongodb`            | `mongodb`                                                   |   ✅   |
 
 ## Installation
 
@@ -40,52 +40,29 @@ npm install mongodb                                                 # MongoDB
 ## Quick Start
 
 <details>
-<summary>BigQuery — traditional (known project + dataset)</summary>
+<summary>BigQuery</summary>
 <br>
 
 ```typescript
 import { createBigQueryConnector } from 'venomous-datasource/bigquery';
+import { readFileSync } from 'node:fs';
 
-const connector = createBigQueryConnector({
-  projectId: 'your-project-id',
-  datasetId: 'your_dataset',
-});
-
-await connector.connect(); // Uses Application Default Credentials
-
-const tables = await connector.tables();
-const preview = await connector.peek('users', { rows: 5 });
-
-for await (const row of connector.sql('SELECT * FROM users WHERE age > ?', [18])) {
-  console.log(row);
-}
-
-await connector.disconnect();
-```
-
-</details>
-
-<details>
-<summary>BigQuery — exploration (discover projects and datasets)</summary>
-<br>
-
-```typescript
-import { createBigQueryConnector } from 'venomous-datasource/bigquery';
-
-const connector = createBigQueryConnector(); // no options needed
+const connector = createBigQueryConnector();
 
 await connector.connect({
-  type: 'service-account',
-  keyFilePath: '/path/to/key.json',
+  credentials: {
+    project_id: 'your-project-id',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@your-project-id.iam.gserviceaccount.com',
+  },
 });
 
-// Discover available resources
-const projects = await connector.projects();
 const datasets = await connector.datasets();
-
-// Select a dataset, then use tables/peek/find/sql as usual
 connector.useDataset(datasets[0].datasetId);
+
 const tables = await connector.tables();
+const preview = await connector.peek(tables[0].name, { pageSize: 5 });
+console.log(preview);
 
 await connector.disconnect();
 ```
@@ -134,8 +111,14 @@ const connector = createSheetsConnector({
 });
 
 await connector.connect({
-  type: 'service-account',
-  keyFilePath: '/path/to/key.json',
+  type: 'service-account-json',
+  // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
+  credentials: {
+    type: 'service_account',
+    project_id: 'your-project-id',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@your-project-id.iam.gserviceaccount.com',
+  },
 });
 
 // List all sheets in the spreadsheet

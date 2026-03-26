@@ -107,7 +107,7 @@ Interface for file-based data source connectors (e.g., S3, GCS).
 
 ### Authentication
 
-All connectors default to `{ type: 'auto' }`, which delegates to the native SDK's credential chain.
+Most connectors default to `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery is an exception — it requires explicit authentication (`credentials`).
 
 ```typescript
 // Base — all connectors support this
@@ -115,26 +115,20 @@ interface BaseAuth {
   readonly type: 'auto';
 }
 
-// BigQuery / GCS / Sheets (Google service account based)
-type BigQueryAuth =
-  | BaseAuth
-  | { type: 'service-account'; keyFilePath: string }
-  | { type: 'service-account-json'; credentials: object };
+// BigQuery (no auto — explicit auth required, type is optional)
+type BigQueryAuth = { type?: 'credentials'; credentials: object };
 
 type GCSAuth =
   | BaseAuth
-  | { type: 'service-account'; keyFilePath: string }
   | { type: 'service-account-json'; credentials: object };
 
 type SheetsAuth =
   | BaseAuth
-  | { type: 'service-account'; keyFilePath: string }
   | { type: 'service-account-json'; credentials: object };
 
 // Firestore (DocumentConnector — same Google auth modes)
 type FirestoreAuth =
   | BaseAuth
-  | { type: 'service-account'; keyFilePath: string }
   | { type: 'service-account-json'; credentials: object };
 
 // S3

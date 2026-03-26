@@ -1,89 +1,43 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { resolveAuth, resolveProjectId } from './auth.js';
 
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn(),
-}));
-
 describe('resolveAuth', () => {
-  it('returns empty options for auto auth', () => {
-    const result = resolveAuth({ type: 'auto' });
-    expect(result).toEqual({});
-  });
-
-  it('returns empty options when auth is undefined', () => {
-    const result = resolveAuth(undefined);
-    expect(result).toEqual({});
-  });
-
-  it('returns keyFilename for service-account auth', () => {
-    const result = resolveAuth({
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
-    });
-    expect(result).toEqual({ keyFilename: '/path/to/key.json' });
-  });
-
-  it('returns credentials for service-account-json auth', () => {
+  it('returns credentials for credentials auth', () => {
     const creds = { client_email: 'test@test.iam.gserviceaccount.com', private_key: 'key' };
     const result = resolveAuth({
-      type: 'service-account-json',
+      type: 'credentials',
       credentials: creds,
     });
     expect(result).toEqual({ credentials: creds });
   });
+
+  it('returns credentials when type is omitted', () => {
+    const creds = { client_email: 'test@test.iam.gserviceaccount.com', private_key: 'key' };
+    const result = resolveAuth({
+      credentials: creds,
+    });
+    expect(result).toEqual({ credentials: creds });
+  });
+
+  it('throws for unknown auth type (runtime guard)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const badAuth = { type: 'unknown-type', credentials: {} } as any;
+    expect(() => resolveAuth(badAuth)).toThrow(/Unknown auth type/);
+  });
 });
 
 describe('resolveProjectId', () => {
-  it('returns undefined when auth is undefined', () => {
-    expect(resolveProjectId()).toBeUndefined();
-  });
-
-  it('returns undefined for auto auth', () => {
-    expect(resolveProjectId({ type: 'auto' })).toBeUndefined();
-  });
-
-  it('reads project_id from service-account key file', async () => {
-    const { readFileSync } = await import('node:fs');
-    const mockReadFileSync = vi.mocked(readFileSync);
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify({
-        type: 'service_account',
-        project_id: 'my-project-123',
-        client_email: 'test@test.iam.gserviceaccount.com',
-      })
-    );
-
+  it('extracts project_id from credentials auth', () => {
     const result = resolveProjectId({
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
+      type: 'credentials',
+      credentials: { project_id: 'json-project' },
     });
 
-    expect(result).toBe('my-project-123');
-    expect(mockReadFileSync).toHaveBeenCalledWith('/path/to/key.json', 'utf-8');
+    expect(result).toBe('json-project');
   });
 
-  it('returns undefined when key file has no project_id', async () => {
-    const { readFileSync } = await import('node:fs');
-    const mockReadFileSync = vi.mocked(readFileSync);
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify({
-        type: 'service_account',
-        client_email: 'test@test.iam.gserviceaccount.com',
-      })
-    );
-
+  it('extracts project_id when type is omitted', () => {
     const result = resolveProjectId({
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
-    });
-
-    expect(result).toBeUndefined();
-  });
-
-  it('extracts project_id from service-account-json credentials', () => {
-    const result = resolveProjectId({
-      type: 'service-account-json',
       credentials: { project_id: 'json-project' },
     });
 
@@ -92,10 +46,25 @@ describe('resolveProjectId', () => {
 
   it('returns undefined when credentials have no project_id', () => {
     const result = resolveProjectId({
-      type: 'service-account-json',
+      type: 'credentials',
       credentials: { client_email: 'test@test.iam.gserviceaccount.com' },
     });
 
     expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when project_id is empty string', () => {
+    const result = resolveProjectId({
+      type: 'credentials',
+      credentials: { project_id: '' },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('throws for unknown auth type (runtime guard)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const badAuth = { type: 'unknown-type', credentials: {} } as any;
+    expect(() => resolveProjectId(badAuth)).toThrow(/Unknown auth type/);
   });
 });

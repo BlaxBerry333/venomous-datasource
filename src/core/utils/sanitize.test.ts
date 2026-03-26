@@ -19,7 +19,7 @@ describe('redactAuth', () => {
 
   it('should redact credentials field', () => {
     const auth = {
-      type: 'service-account-json',
+      type: 'credentials',
       credentials: { private_key: 'SECRET', client_email: 'test@example.com' },
     };
     const result = redactAuth(auth) as Record<string, unknown>;
@@ -28,21 +28,12 @@ describe('redactAuth', () => {
 
   it('should redact private_key in nested objects', () => {
     const auth = {
-      type: 'service-account-json',
+      type: 'credentials',
       nested: { private_key: 'SECRET_KEY' },
     };
     const result = redactAuth(auth) as Record<string, unknown>;
     const nested = result['nested'] as Record<string, unknown>;
     expect(nested['private_key']).toBe('[REDACTED]');
-  });
-
-  it('should redact keyFilePath', () => {
-    const auth = {
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
-    };
-    const result = redactAuth(auth) as Record<string, unknown>;
-    expect(result['keyFilePath']).toBe('[REDACTED]');
   });
 
   it('should return null for null input', () => {

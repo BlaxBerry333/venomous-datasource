@@ -7,7 +7,6 @@ const DEFAULT_SENSITIVE_FIELDS = new Set([
   'credentials',
   'private_key',
   'client_email',
-  'keyFilePath',
 ]);
 
 const REDACTED = '[REDACTED]';

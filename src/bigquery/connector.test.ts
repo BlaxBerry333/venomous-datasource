@@ -88,6 +88,12 @@ async function getResolveProjectIdMock() {
   return authMod.resolveProjectId as ReturnType<typeof vi.fn>;
 }
 
+/** Default mock auth used across tests. BigQuery requires explicit auth. */
+const mockAuth = {
+  type: 'credentials' as const,
+  credentials: { client_email: 'test@test.iam.gserviceaccount.com', private_key: 'mock-key' },
+};
+
 describe('BigQueryConnector', () => {
   let connector: BigQueryConnector;
 
@@ -130,44 +136,42 @@ describe('BigQueryConnector', () => {
   });
 
   describe('connect', () => {
-    it('connects successfully with default auth (auto) when projectId is provided', async () => {
+    it('connects successfully with credentials auth', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
       // Should not throw
     });
 
-    it('connects successfully with explicit auto auth', async () => {
-      const mocks = await getMocks();
-      mocks.mockQuery.mockResolvedValue([[]]);
-
-      await connector.connect({ type: 'auto' });
+    it('throws AuthenticationError when auth is not provided', async () => {
+      await expect(connector.connect()).rejects.toThrow(AuthenticationError);
+      await expect(connector.connect()).rejects.toThrow(
+        /BigQuery requires explicit authentication/
+      );
+      try {
+        await connector.connect();
+      } catch (err) {
+        expect((err as AuthenticationError).code).toBe('VENOMOUS_AUTH_REQUIRED');
+      }
     });
 
     it('wraps connection errors', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockRejectedValue(new Error('ECONNREFUSED'));
 
-      await expect(connector.connect()).rejects.toThrow(ConnectionError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(ConnectionError);
     });
 
-    it('infers projectId from service-account key file when not provided', async () => {
+    it('connects successfully with type omitted', async () => {
       const mocks = await getMocks();
-      const resolveProjectIdMock = await getResolveProjectIdMock();
-      resolveProjectIdMock.mockReturnValue('inferred-project');
       mocks.mockQuery.mockResolvedValue([[]]);
 
-      const c = new BigQueryConnector();
-      await c.connect({ type: 'service-account', keyFilePath: '/path/to/key.json' });
-
-      expect(resolveProjectIdMock).toHaveBeenCalledWith({
-        type: 'service-account',
-        keyFilePath: '/path/to/key.json',
-      });
+      await connector.connect({ credentials: mockAuth.credentials });
+      // Should not throw
     });
 
-    it('infers projectId from service-account-json credentials when not provided', async () => {
+    it('infers projectId from credentials when not provided', async () => {
       const mocks = await getMocks();
       const resolveProjectIdMock = await getResolveProjectIdMock();
       resolveProjectIdMock.mockReturnValue('json-project');
@@ -178,21 +182,9 @@ describe('BigQueryConnector', () => {
         client_email: 'test@test.iam.gserviceaccount.com',
       };
       const c = new BigQueryConnector();
-      await c.connect({ type: 'service-account-json', credentials: creds });
+      await c.connect({ type: 'credentials', credentials: creds });
 
       expect(resolveProjectIdMock).toHaveBeenCalled();
-    });
-
-    it('uses SDK projectId for auto mode without explicit projectId', async () => {
-      const mocks = await getMocks();
-      const resolveProjectIdMock = await getResolveProjectIdMock();
-      resolveProjectIdMock.mockReturnValue(undefined); // auto returns undefined
-      mocks.mockQuery.mockResolvedValue([[]]);
-
-      const c = new BigQueryConnector();
-      await c.connect({ type: 'auto' });
-
-      // Should succeed because mock BigQuery has projectId: 'test-project'
     });
 
     it('throws ConnectionError when projectId cannot be determined', async () => {
@@ -211,7 +203,7 @@ describe('BigQueryConnector', () => {
       }));
 
       const c = new BigQueryConnector();
-      await expect(c.connect()).rejects.toThrow(ConnectionError);
+      await expect(c.connect(mockAuth)).rejects.toThrow(ConnectionError);
 
       // Restore default mock behavior
       mocks.MockBigQuery.mockImplementation(() => ({
@@ -228,7 +220,7 @@ describe('BigQueryConnector', () => {
       const resolveProjectIdMock = await getResolveProjectIdMock();
       mocks.mockQuery.mockResolvedValue([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       expect(resolveProjectIdMock).not.toHaveBeenCalled();
     });
@@ -237,9 +229,9 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
       // Connect again -- should not throw
-      await connector.connect();
+      await connector.connect(mockAuth);
     });
 
     it('wraps resolveProjectId errors via wrapError', async () => {
@@ -252,9 +244,7 @@ describe('BigQueryConnector', () => {
 
       const c = new BigQueryConnector();
       // The error from resolveProjectId should be wrapped
-      await expect(
-        c.connect({ type: 'service-account', keyFilePath: '/nonexistent.json' })
-      ).rejects.toThrow();
+      await expect(c.connect({ type: 'credentials', credentials: {} })).rejects.toThrow();
     });
   });
 
@@ -263,7 +253,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
       await connector.disconnect();
 
       // Should throw when calling tables() after disconnect
@@ -273,7 +263,7 @@ describe('BigQueryConnector', () => {
     it('clears schemaCache (reconnect requires fresh metadata)', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Populate cache via tables()
       mocks.mockGetTables.mockResolvedValue([
@@ -294,7 +284,7 @@ describe('BigQueryConnector', () => {
 
       // Reconnect
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // peek() should call getMetadata() since cache was cleared
       mocks.mockQuery.mockResolvedValueOnce([[{ id: 1 }]]);
@@ -317,7 +307,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery.mockResolvedValue([[]]);
 
       const c = new BigQueryConnector({ projectId: 'proj' });
-      await c.connect();
+      await c.connect(mockAuth);
 
       await expect(c.tables()).rejects.toThrow(ConnectionError);
       await expect(c.tables()).rejects.toThrow(/No dataset selected/);
@@ -328,7 +318,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery.mockResolvedValue([[]]);
 
       const c = new BigQueryConnector({ projectId: 'proj' });
-      await c.connect();
+      await c.connect(mockAuth);
 
       await expect(c.peek('users')).rejects.toThrow(ConnectionError);
       await expect(c.peek('users')).rejects.toThrow(/No dataset selected/);
@@ -339,7 +329,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery.mockResolvedValue([[]]);
 
       const c = new BigQueryConnector({ projectId: 'proj' });
-      await c.connect();
+      await c.connect(mockAuth);
 
       await expect(c.find('users')).rejects.toThrow(ConnectionError);
     });
@@ -349,7 +339,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery.mockResolvedValue([[]]);
 
       const c = new BigQueryConnector({ projectId: 'proj' });
-      await c.connect();
+      await c.connect(mockAuth);
 
       const mockJob = {
         getQueryResults: vi.fn().mockResolvedValue([[{ id: 1 }], null, { pageToken: undefined }]),
@@ -371,7 +361,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery.mockResolvedValue([[]]);
 
       const c = new BigQueryConnector({ projectId: 'proj' });
-      await c.connect();
+      await c.connect(mockAuth);
 
       c.useDataset('my_dataset');
 
@@ -383,7 +373,7 @@ describe('BigQueryConnector', () => {
     it('clears schemaCache on dataset switch', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Populate cache via tables()
       mocks.mockGetTables.mockResolvedValue([
@@ -422,7 +412,7 @@ describe('BigQueryConnector', () => {
     it('throws QueryError for empty string', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       expect(() => connector.useDataset('')).toThrow(QueryError);
       expect(() => connector.useDataset('')).toThrow(/datasetId must not be empty/);
@@ -433,7 +423,7 @@ describe('BigQueryConnector', () => {
     it('returns datasets for current project', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetDatasets.mockResolvedValue([
         [
@@ -452,7 +442,7 @@ describe('BigQueryConnector', () => {
     it('uses current client when projectId matches', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetDatasets.mockResolvedValue([[]]);
 
@@ -465,7 +455,7 @@ describe('BigQueryConnector', () => {
     it('creates temporary client for different projectId', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetDatasets.mockResolvedValue([[]]);
 
@@ -481,7 +471,7 @@ describe('BigQueryConnector', () => {
     it('returns empty array', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetDatasets.mockResolvedValue([[]]);
 
@@ -498,7 +488,7 @@ describe('BigQueryConnector', () => {
     it('returns ACTIVE projects and filters non-ACTIVE', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Mock resource-manager module
       const mockClose = vi.fn().mockResolvedValue(undefined);
@@ -531,7 +521,7 @@ describe('BigQueryConnector', () => {
     it('returns empty array when no projects', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -563,7 +553,7 @@ describe('BigQueryConnector', () => {
     it('calls ProjectsClient.close() even on error (finally)', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -589,7 +579,7 @@ describe('BigQueryConnector', () => {
     it('maps HTTP 403 to PermissionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const err = new Error('Forbidden') as Error & { code: number };
       err.code = 403;
@@ -601,7 +591,7 @@ describe('BigQueryConnector', () => {
     it('maps HTTP 401 to AuthenticationError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const err = new Error('Unauthorized') as Error & { code: number };
       err.code = 401;
@@ -613,7 +603,7 @@ describe('BigQueryConnector', () => {
     it('maps gRPC PERMISSION_DENIED to PermissionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('7 PERMISSION_DENIED: Access denied'));
 
@@ -629,7 +619,7 @@ describe('BigQueryConnector', () => {
     it('returns table list with schema from table.metadata (no N+1)', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockTableObj = {
         id: 'users',
@@ -664,7 +654,7 @@ describe('BigQueryConnector', () => {
     it('handles empty dataset', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockResolvedValue([[]]);
 
@@ -676,7 +666,7 @@ describe('BigQueryConnector', () => {
     it('handles tables with missing schema (returns empty schema array)', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockTableObj = {
         id: 'view_table',
@@ -697,7 +687,7 @@ describe('BigQueryConnector', () => {
     it('handles tables with missing numRows', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockTableObj = {
         id: 'sparse_table',
@@ -716,7 +706,7 @@ describe('BigQueryConnector', () => {
     it('skips tables with no identifiable name', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockTableWithId = {
         id: 'valid_table',
@@ -737,7 +727,7 @@ describe('BigQueryConnector', () => {
     it('falls back to metadata.tableReference.tableId when table.id is undefined', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockTableObj = {
         id: undefined,
@@ -760,7 +750,7 @@ describe('BigQueryConnector', () => {
         .mockResolvedValueOnce([[]]) // connect
         .mockResolvedValueOnce([[{ id: 1, name: 'Alice' }]]); // peek query
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // tables() populates cache
       const mockTableObj = {
@@ -796,7 +786,7 @@ describe('BigQueryConnector', () => {
     it('validates table name', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.peek('invalid table!')).rejects.toThrow(QueryError);
     });
@@ -807,7 +797,7 @@ describe('BigQueryConnector', () => {
         .mockResolvedValueOnce([[]]) // connect validation
         .mockResolvedValueOnce([[{ id: 1, name: 'Alice' }]]); // peek query
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -834,7 +824,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([{ schema: { fields: [] } }]);
 
@@ -849,7 +839,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([{ schema: { fields: [] } }]);
 
@@ -863,7 +853,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([{ schema: { fields: [] } }]);
 
@@ -877,7 +867,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 1 }]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([{ schema: { fields: [] } }]);
 
@@ -891,7 +881,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 1 }]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -920,7 +910,7 @@ describe('BigQueryConnector', () => {
           Array.from({ length: 51 }, (_, i) => ({ id: i + 1 })),
         ]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -939,7 +929,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 1 }, { id: 2 }]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -958,7 +948,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -980,7 +970,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1000,7 +990,7 @@ describe('BigQueryConnector', () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
 
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1019,7 +1009,7 @@ describe('BigQueryConnector', () => {
     it('rejects unknown column names', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1039,7 +1029,7 @@ describe('BigQueryConnector', () => {
     it('yields rows from query', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockJob = {
         getQueryResults: vi
@@ -1059,7 +1049,7 @@ describe('BigQueryConnector', () => {
     it('handles parameterized queries with ? placeholders', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockJob = {
         getQueryResults: vi.fn().mockResolvedValue([[{ id: 1 }], null, { pageToken: undefined }]),
@@ -1084,7 +1074,7 @@ describe('BigQueryConnector', () => {
     it('does not replace ? inside single-quoted string literals', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockJob = {
         getQueryResults: vi.fn().mockResolvedValue([[{ id: 1 }], null, { pageToken: undefined }]),
@@ -1113,7 +1103,7 @@ describe('BigQueryConnector', () => {
     it('throws when param count does not match placeholder count', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const iter = connector.sql('SELECT ? + ?', [1]);
       await expect(async () => {
@@ -1126,7 +1116,7 @@ describe('BigQueryConnector', () => {
     it('handles multi-page results', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockJob = {
         getQueryResults: vi
@@ -1154,7 +1144,7 @@ describe('BigQueryConnector', () => {
     it('returns count for successful insert', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockInsert.mockResolvedValue(undefined);
 
@@ -1165,7 +1155,7 @@ describe('BigQueryConnector', () => {
     it('returns 0 for empty rows array', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const result = await connector.insert!('users', []);
       expect(result).toEqual({ insertedCount: 0 });
@@ -1174,7 +1164,7 @@ describe('BigQueryConnector', () => {
     it('validates table name', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.insert!('bad table!', [{ id: 1 }])).rejects.toThrow(QueryError);
     });
@@ -1184,7 +1174,7 @@ describe('BigQueryConnector', () => {
     it('rejects empty where clause', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(
         connector.update!('users', {
@@ -1197,7 +1187,7 @@ describe('BigQueryConnector', () => {
     it('rejects undefined where at runtime', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Simulate runtime JS call without where (bypasses TS type check)
       await expect(
@@ -1210,7 +1200,7 @@ describe('BigQueryConnector', () => {
     it('rejects where: undefined at runtime', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(
         connector.update!('users', {
@@ -1223,7 +1213,7 @@ describe('BigQueryConnector', () => {
     it('executes update with where clause', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1258,7 +1248,7 @@ describe('BigQueryConnector', () => {
     it('rejects empty where clause', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(
         connector.remove!('users', {
@@ -1270,7 +1260,7 @@ describe('BigQueryConnector', () => {
     it('rejects undefined where at runtime', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Simulate runtime JS call without where
       await expect(connector.remove!('users', {} as never)).rejects.toThrow(QueryError);
@@ -1279,7 +1269,7 @@ describe('BigQueryConnector', () => {
     it('rejects where: undefined at runtime', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(
         connector.remove!('users', {
@@ -1291,7 +1281,7 @@ describe('BigQueryConnector', () => {
     it('executes delete with where clause', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1320,7 +1310,7 @@ describe('BigQueryConnector', () => {
     it('validates table name', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(
         connector.remove!('bad table!', {
@@ -1334,7 +1324,7 @@ describe('BigQueryConnector', () => {
     it('rejects table names with spaces', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.peek('my table')).rejects.toThrow(QueryError);
     });
@@ -1342,7 +1332,7 @@ describe('BigQueryConnector', () => {
     it('rejects table names with SQL injection', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.peek('users; DROP TABLE users')).rejects.toThrow(QueryError);
     });
@@ -1350,7 +1340,7 @@ describe('BigQueryConnector', () => {
     it('allows valid identifier characters', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([{ schema: { fields: [] } }]);
 
@@ -1367,7 +1357,7 @@ describe('BigQueryConnector', () => {
     it('maps HTTP 404 to NotFoundError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const err = new Error('Not found: Table') as Error & { code: number };
       err.code = 404;
@@ -1379,7 +1369,7 @@ describe('BigQueryConnector', () => {
     it('maps "Not found" message to NotFoundError when no HTTP code', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('Not found: Dataset my_dataset'));
 
@@ -1389,7 +1379,7 @@ describe('BigQueryConnector', () => {
     it('maps "notFound" message to NotFoundError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('notFound'));
 
@@ -1399,7 +1389,7 @@ describe('BigQueryConnector', () => {
     it('maps "Could not load the default credentials" to AuthenticationError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('Could not load the default credentials'));
 
@@ -1409,7 +1399,7 @@ describe('BigQueryConnector', () => {
     it('maps "invalid_grant" to AuthenticationError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('invalid_grant: Token expired'));
 
@@ -1419,7 +1409,7 @@ describe('BigQueryConnector', () => {
     it('maps "UNAUTHENTICATED" to AuthenticationError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('UNAUTHENTICATED: request expired'));
 
@@ -1429,7 +1419,7 @@ describe('BigQueryConnector', () => {
     it('maps "credentials are required" to AuthenticationError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('credentials are required'));
 
@@ -1439,7 +1429,7 @@ describe('BigQueryConnector', () => {
     it('maps "credentials are not valid" to AuthenticationError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('credentials are not valid'));
 
@@ -1449,7 +1439,7 @@ describe('BigQueryConnector', () => {
     it('maps "ECONNREFUSED" to ConnectionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:443'));
 
@@ -1459,7 +1449,7 @@ describe('BigQueryConnector', () => {
     it('maps "ETIMEDOUT" to ConnectionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('connect ETIMEDOUT'));
 
@@ -1469,7 +1459,7 @@ describe('BigQueryConnector', () => {
     it('maps "ENOTFOUND" to ConnectionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(
         new Error('getaddrinfo ENOTFOUND bigquery.googleapis.com')
@@ -1481,7 +1471,7 @@ describe('BigQueryConnector', () => {
     it('maps "network error" to ConnectionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('network error'));
 
@@ -1491,7 +1481,7 @@ describe('BigQueryConnector', () => {
     it('maps "Network Error" to ConnectionError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('Network Error'));
 
@@ -1501,7 +1491,7 @@ describe('BigQueryConnector', () => {
     it('maps unknown Error to QueryError as default', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue(new Error('Something unexpected happened'));
 
@@ -1511,7 +1501,7 @@ describe('BigQueryConnector', () => {
     it('maps non-Error thrown value to QueryError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetTables.mockRejectedValue('string error');
 
@@ -1521,7 +1511,7 @@ describe('BigQueryConnector', () => {
     it('uses defaultMessage when Error has no message', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const err = new Error();
       err.message = '';
@@ -1536,7 +1526,7 @@ describe('BigQueryConnector', () => {
     it('applies ne operator with non-null value', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1557,7 +1547,7 @@ describe('BigQueryConnector', () => {
     it('applies ne operator with null value (IS NOT NULL)', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1576,7 +1566,7 @@ describe('BigQueryConnector', () => {
     it('applies gt operator', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1597,7 +1587,7 @@ describe('BigQueryConnector', () => {
     it('applies lt operator', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1616,7 +1606,7 @@ describe('BigQueryConnector', () => {
     it('applies gte operator', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1635,7 +1625,7 @@ describe('BigQueryConnector', () => {
     it('applies lte operator', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1654,7 +1644,7 @@ describe('BigQueryConnector', () => {
     it('applies in operator', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1675,7 +1665,7 @@ describe('BigQueryConnector', () => {
     it('applies like operator', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1696,7 +1686,7 @@ describe('BigQueryConnector', () => {
     it('applies multiple where conditions with AND', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1726,7 +1716,7 @@ describe('BigQueryConnector', () => {
     it('rejects unknown column in ORDER BY', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1744,7 +1734,7 @@ describe('BigQueryConnector', () => {
     it('handles empty orderBy array gracefully', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 1 }]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1763,7 +1753,7 @@ describe('BigQueryConnector', () => {
     it('applies ASC direction by default in ORDER BY', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1782,7 +1772,7 @@ describe('BigQueryConnector', () => {
     it('continues pagination from cursor', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 51 }, { id: 52 }]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1806,7 +1796,7 @@ describe('BigQueryConnector', () => {
     it('throws QueryError for cursor with missing offset', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1832,7 +1822,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery
         .mockResolvedValueOnce([[]])
         .mockRejectedValueOnce(new Error('PERMISSION_DENIED: Access denied'));
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1848,7 +1838,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([Array.from({ length: 11 }, (_, i) => ({ id: i }))]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1873,7 +1863,7 @@ describe('BigQueryConnector', () => {
     it('throws QueryError with partial failure details', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Simulate PartialFailureError from BigQuery SDK
       const partialErr = new Error('Partial insert failure') as Error & {
@@ -1897,7 +1887,7 @@ describe('BigQueryConnector', () => {
     it('correctly counts failed rows by deduplicating row indices', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const partialErr = new Error('Partial failure') as Error & {
         errors: Array<{ row: number }>;
@@ -1918,7 +1908,7 @@ describe('BigQueryConnector', () => {
     it('handles partial failure with undefined row indices (falls back to Set size)', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const partialErr = new Error('Partial failure') as Error & {
         errors: Array<Record<string, unknown>>;
@@ -1942,7 +1932,7 @@ describe('BigQueryConnector', () => {
     it('wraps non-partial insert errors via wrapError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Error without .errors array -- goes to wrapError fallback
       mocks.mockInsert.mockRejectedValue(new Error('PERMISSION_DENIED: Cannot insert'));
@@ -1955,7 +1945,7 @@ describe('BigQueryConnector', () => {
     it('rejects unknown column in SET clause', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -1993,7 +1983,7 @@ describe('BigQueryConnector', () => {
     it('throws AuthenticationError for UNAUTHENTICATED gRPC error', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -2017,7 +2007,7 @@ describe('BigQueryConnector', () => {
     it('throws ConnectionError for ECONNREFUSED during project listing', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -2041,7 +2031,7 @@ describe('BigQueryConnector', () => {
     it('throws ConnectionError for ETIMEDOUT during project listing', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -2065,7 +2055,7 @@ describe('BigQueryConnector', () => {
     it('throws ConnectionError for ENOTFOUND during project listing', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -2089,7 +2079,7 @@ describe('BigQueryConnector', () => {
     it('falls through to wrapError for non-classified errors', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
 
@@ -2117,7 +2107,7 @@ describe('BigQueryConnector', () => {
     it('handles displayName being undefined', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockClose = vi.fn().mockResolvedValue(undefined);
       vi.doMock('@google-cloud/resource-manager', () => ({
@@ -2142,7 +2132,7 @@ describe('BigQueryConnector', () => {
     it('wraps errors from getDatasets via wrapError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const err = new Error('Forbidden') as Error & { code: number };
       err.code = 403;
@@ -2154,7 +2144,7 @@ describe('BigQueryConnector', () => {
     it('handles datasets with missing location metadata', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValue([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetDatasets.mockResolvedValue([[{ id: 'ds_no_location', metadata: {} }]]);
 
@@ -2167,7 +2157,7 @@ describe('BigQueryConnector', () => {
     it('handles escaped single quotes in SQL string literals', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const mockJob = {
         getQueryResults: vi
@@ -2199,7 +2189,7 @@ describe('BigQueryConnector', () => {
     it('wraps errors from createQueryJob', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockCreateQueryJob.mockRejectedValue(new Error('Something went wrong'));
 
@@ -2227,7 +2217,7 @@ describe('BigQueryConnector', () => {
       mocks.mockQuery.mockRejectedValue(new Error('connect ECONNREFUSED'));
 
       try {
-        await connector.connect();
+        await connector.connect(mockAuth);
       } catch {
         // expected
       }
@@ -2253,7 +2243,7 @@ describe('BigQueryConnector', () => {
 
       const c = new BigQueryConnector();
       try {
-        await c.connect();
+        await c.connect(mockAuth);
       } catch {
         // expected
       }
@@ -2277,7 +2267,7 @@ describe('BigQueryConnector', () => {
     it('wraps getMetadata errors via wrapError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 1 }]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const err = new Error('Not found: Table users') as Error & { code: number };
       err.code = 404;
@@ -2291,7 +2281,7 @@ describe('BigQueryConnector', () => {
     it('wraps DML errors via wrapError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {
@@ -2313,7 +2303,7 @@ describe('BigQueryConnector', () => {
     it('wraps DML errors via wrapError', async () => {
       const mocks = await getMocks();
       mocks.mockQuery.mockResolvedValueOnce([[]]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockGetMetadata.mockResolvedValue([
         {

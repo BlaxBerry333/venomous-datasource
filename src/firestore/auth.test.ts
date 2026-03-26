@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ConnectionError, AuthenticationError } from '../core/index.js';
+import { ConnectionError } from '../core/index.js';
 
 // Mock firebase-admin
 const mockApplicationDefault = vi.fn(() => 'mock-adc-credential');
@@ -16,11 +16,6 @@ vi.mock('firebase-admin', () => ({
     applicationDefault: mockApplicationDefault,
     cert: mockCert,
   },
-}));
-
-// Mock fs.readFileSync
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn(),
 }));
 
 describe('resolveAuth', () => {
@@ -40,26 +35,6 @@ describe('resolveAuth', () => {
     const result = await resolveAuth({ type: 'auto' });
     expect(result.credential).toBe('mock-adc-credential');
     expect(result.projectId).toBeUndefined();
-  });
-
-  it('should read key file and return cert credential for service-account auth', async () => {
-    const fs = await import('node:fs');
-    const serviceAccount = {
-      project_id: 'test-project',
-      client_email: 'test@test.iam.gserviceaccount.com',
-      private_key: 'private-key-content',
-    };
-    vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(serviceAccount));
-
-    const { resolveAuth } = await import('./auth.js');
-    const result = await resolveAuth({
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
-    });
-
-    expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/key.json', 'utf-8');
-    expect(mockCert).toHaveBeenCalledWith(serviceAccount);
-    expect(result.projectId).toBe('test-project');
   });
 
   it('should return cert credential for service-account-json auth', async () => {
@@ -92,45 +67,6 @@ describe('resolveAuth', () => {
     });
 
     expect(result.projectId).toBeUndefined();
-  });
-
-  it('should throw AuthenticationError when key file cannot be read', async () => {
-    const fs = await import('node:fs');
-    vi.mocked(fs.readFileSync).mockImplementation(() => {
-      throw new Error('ENOENT: no such file');
-    });
-
-    const { resolveAuth } = await import('./auth.js');
-    await expect(
-      resolveAuth({ type: 'service-account', keyFilePath: '/bad/path.json' })
-    ).rejects.toThrow(AuthenticationError);
-  });
-
-  it('should not leak file path in error message when key file read fails', async () => {
-    const fs = await import('node:fs');
-    vi.mocked(fs.readFileSync).mockImplementation(() => {
-      throw new Error('ENOENT: /bad/path.json');
-    });
-
-    const { resolveAuth } = await import('./auth.js');
-    try {
-      await resolveAuth({ type: 'service-account', keyFilePath: '/bad/path.json' });
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(AuthenticationError);
-      expect((err as Error).message).not.toContain('/bad/path.json');
-      expect((err as Error).message).toContain('could not be read or parsed');
-    }
-  });
-
-  it('should throw AuthenticationError when key file contains invalid JSON', async () => {
-    const fs = await import('node:fs');
-    vi.mocked(fs.readFileSync).mockReturnValue('not-valid-json');
-
-    const { resolveAuth } = await import('./auth.js');
-    await expect(
-      resolveAuth({ type: 'service-account', keyFilePath: '/path/to/bad.json' })
-    ).rejects.toThrow(AuthenticationError);
   });
 
   it('should throw for unknown auth type', async () => {

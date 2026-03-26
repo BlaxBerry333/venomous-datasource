@@ -21,13 +21,13 @@ import type { BigQueryOptions } from './types.js';
  *   projectId: 'my-project',
  *   datasetId: 'my_dataset',
  * });
- * await connector.connect(); // uses ADC
+ * await connector.connect({ credentials: {...} });
  * const tables = await connector.tables();
  * await connector.disconnect();
  *
  * // Exploration usage (no options)
  * const explorer = createBigQueryConnector();
- * await explorer.connect({ type: 'service-account', keyFilePath: '/path/to/key.json' });
+ * await explorer.connect({ credentials: {...} });
  * const datasets = await explorer.datasets();
  * explorer.useDataset(datasets[0].datasetId);
  * const tables2 = await explorer.tables();

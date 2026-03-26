@@ -22,32 +22,6 @@ describe('resolveAuth', () => {
     expect(result).toEqual({ projectId: 'my-project' });
   });
 
-  it('returns keyFilename for service-account auth', () => {
-    const result = resolveAuth({
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
-    });
-
-    expect(result).toEqual({
-      keyFilename: '/path/to/key.json',
-    });
-  });
-
-  it('includes projectId with service-account auth', () => {
-    const result = resolveAuth(
-      {
-        type: 'service-account',
-        keyFilePath: '/path/to/key.json',
-      },
-      'my-project'
-    );
-
-    expect(result).toEqual({
-      projectId: 'my-project',
-      keyFilename: '/path/to/key.json',
-    });
-  });
-
   it('returns credentials for service-account-json auth', () => {
     const creds = {
       type: 'service_account',

@@ -10,7 +10,6 @@ const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
  */
 interface GoogleAuthConfig {
   scopes: string[];
-  keyFile?: string;
   credentials?: object;
 }
 
@@ -31,10 +30,10 @@ interface GoogleAuthConfig {
  * // { scopes: ['https://www.googleapis.com/auth/spreadsheets'] }
  *
  * const config2 = resolveAuth({
- *   type: 'service-account',
- *   keyFilePath: '/path/to/key.json',
+ *   type: 'service-account-json',
+ *   credentials: {...},
  * });
- * // { scopes: [...], keyFile: '/path/to/key.json' }
+ * // { scopes: [...], credentials: {...} }
  * ```
  */
 export function resolveAuth(auth?: SheetsAuth): GoogleAuthConfig {
@@ -42,10 +41,6 @@ export function resolveAuth(auth?: SheetsAuth): GoogleAuthConfig {
 
   if (!auth || auth.type === 'auto') {
     return base;
-  }
-
-  if (auth.type === 'service-account') {
-    return { ...base, keyFile: auth.keyFilePath };
   }
 
   if (auth.type === 'service-account-json') {

@@ -7,12 +7,15 @@ export interface BaseAuth {
 }
 
 /**
- * BigQuery authentication options (discriminated union).
+ * BigQuery authentication options.
+ *
+ * BigQuery requires explicit authentication — `auto` (ADC) is not supported.
+ * The `type` field can be omitted (defaults to `'credentials'`).
  */
-export type BigQueryAuth =
-  | BaseAuth
-  | { readonly type: 'service-account'; readonly keyFilePath: string }
-  | { readonly type: 'service-account-json'; readonly credentials: object };
+export type BigQueryAuth = {
+  readonly type?: 'credentials';
+  readonly credentials: object;
+};
 
 /**
  * S3 authentication options (discriminated union).
@@ -32,7 +35,6 @@ export type S3Auth =
  */
 export type GCSAuth =
   | BaseAuth
-  | { readonly type: 'service-account'; readonly keyFilePath: string }
   | { readonly type: 'service-account-json'; readonly credentials: object };
 
 /**
@@ -41,7 +43,6 @@ export type GCSAuth =
  */
 export type SheetsAuth =
   | BaseAuth
-  | { readonly type: 'service-account'; readonly keyFilePath: string }
   | { readonly type: 'service-account-json'; readonly credentials: object };
 
 /**
@@ -69,7 +70,6 @@ export type FileAuth = S3Auth | GCSAuth | AzureBlobAuth;
  */
 export type FirestoreAuth =
   | BaseAuth
-  | { readonly type: 'service-account'; readonly keyFilePath: string }
   | { readonly type: 'service-account-json'; readonly credentials: object };
 
 /**

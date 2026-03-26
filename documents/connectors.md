@@ -20,11 +20,11 @@ Detailed usage for each supported data source.
 
 ### Authentication
 
-| Type                   | Fields        | Description                               |
-| ---------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account`      | `keyFilePath` | Path to service account JSON key file     |
-| `service-account-json` | `credentials` | Inline service account credentials object |
+BigQuery requires explicit authentication — `auto` (ADC) is not supported. The `type` field is optional (defaults to `'credentials'`):
+
+| Type                       | Fields        | Description                               |
+| -------------------------- | ------------- | ----------------------------------------- |
+| `credentials` (default)    | `credentials` | Service account credentials object        |
 
 ### Usage
 
@@ -39,7 +39,15 @@ const connector = createBigQueryConnector({
   location: 'US',
 });
 
-await connector.connect();
+// credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8'))
+await connector.connect({
+  credentials: {
+    type: 'service_account',
+    project_id: 'my-project',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@my-project.iam.gserviceaccount.com',
+  },
+});
 // ... use connector
 await connector.disconnect();
 ```
@@ -51,8 +59,13 @@ import { createBigQueryConnector } from 'venomous-datasource/bigquery';
 
 const connector = createBigQueryConnector();
 await connector.connect({
-  type: 'service-account',
-  keyFilePath: '/path/to/key.json',
+  // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
+  credentials: {
+    type: 'service_account',
+    project_id: 'my-project',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@my-project.iam.gserviceaccount.com',
+  },
 });
 
 // List accessible GCP projects (requires @google-cloud/resource-manager)
@@ -217,8 +230,7 @@ console.log(info.size, info.lastModified, info.contentType);
 | Type                   | Fields        | Description                               |
 | ---------------------- | ------------- | ----------------------------------------- |
 | `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account`      | `keyFilePath` | Path to service account JSON key file     |
-| `service-account-json` | `credentials` | Inline service account credentials object |
+| `service-account-json` | `credentials` | Service account credentials object        |
 
 ### Usage
 
@@ -236,8 +248,8 @@ await connector.connect();
 
 // Or with explicit service account
 // await connector.connect({
-//   type: 'service-account',
-//   keyFilePath: '/path/to/key.json',
+//   type: 'service-account-json',
+//   credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
 // });
 ```
 
@@ -294,8 +306,7 @@ console.log(info.size, info.lastModified, info.contentType);
 | Type                   | Fields        | Description                               |
 | ---------------------- | ------------- | ----------------------------------------- |
 | `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account`      | `keyFilePath` | Path to service account JSON key file     |
-| `service-account-json` | `credentials` | Inline service account credentials object |
+| `service-account-json` | `credentials` | Service account credentials object        |
 
 ### Usage
 
@@ -307,8 +318,14 @@ const connector = createSheetsConnector({
 });
 
 await connector.connect({
-  type: 'service-account',
-  keyFilePath: '/path/to/key.json',
+  type: 'service-account-json',
+  // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
+  credentials: {
+    type: 'service_account',
+    project_id: 'your-project-id',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@your-project-id.iam.gserviceaccount.com',
+  },
 });
 ```
 
@@ -387,8 +404,7 @@ await connector.remove('Sheet1', {
 | Type                   | Fields        | Description                               |
 | ---------------------- | ------------- | ----------------------------------------- |
 | `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account`      | `keyFilePath` | Path to service account JSON key file     |
-| `service-account-json` | `credentials` | Inline service account credentials object |
+| `service-account-json` | `credentials` | Service account credentials object        |
 
 ### Usage
 

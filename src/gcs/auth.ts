@@ -14,10 +14,10 @@ import type { GCSAuth } from '../core/index.js';
  * // {} -- SDK uses Application Default Credentials (ADC)
  *
  * const config2 = resolveAuth({
- *   type: 'service-account',
- *   keyFilePath: '/path/to/key.json',
+ *   type: 'service-account-json',
+ *   credentials: {...},
  * });
- * // { keyFilename: '/path/to/key.json' }
+ * // { credentials: {...} }
  * ```
  */
 export function resolveAuth(auth?: GCSAuth, projectId?: string): StorageOptions {
@@ -28,13 +28,6 @@ export function resolveAuth(auth?: GCSAuth, projectId?: string): StorageOptions 
 
   if (!auth || auth.type === 'auto') {
     return base;
-  }
-
-  if (auth.type === 'service-account') {
-    return {
-      ...base,
-      keyFilename: auth.keyFilePath,
-    };
   }
 
   if (auth.type === 'service-account-json') {

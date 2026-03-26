@@ -14,17 +14,6 @@ describe('resolveAuth', () => {
     expect(result).toEqual({ scopes: [SHEETS_SCOPE] });
   });
 
-  it('returns keyFile for service-account auth', () => {
-    const result = resolveAuth({
-      type: 'service-account',
-      keyFilePath: '/path/to/key.json',
-    });
-    expect(result).toEqual({
-      scopes: [SHEETS_SCOPE],
-      keyFile: '/path/to/key.json',
-    });
-  });
-
   it('returns credentials for service-account-json auth', () => {
     const creds = {
       client_email: 'test@test.iam.gserviceaccount.com',

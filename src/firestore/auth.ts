@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
 import type { FirestoreAuth } from '../core/index.js';
-import { AuthenticationError, ConnectionError } from '../core/index.js';
+import { ConnectionError } from '../core/index.js';
 
 const CONNECTOR_NAME = 'firestore';
 
@@ -22,14 +21,13 @@ export interface ResolvedAuth {
  * @param auth - Auth configuration (defaults to auto if undefined).
  * @returns Resolved auth with credential and optional projectId.
  * @throws {ConnectionError} When firebase-admin is not installed.
- * @throws {AuthenticationError} When service account key file cannot be read or parsed.
  *
  * @example
  * ```typescript
  * const resolved = await resolveAuth({ type: 'auto' });
  * // { credential: applicationDefault() }
  *
- * const resolved2 = await resolveAuth({ type: 'service-account', keyFilePath: '/path/to/key.json' });
+ * const resolved2 = await resolveAuth({ type: 'service-account-json', credentials: {...} });
  * // { credential: cert(...), projectId: 'my-project' }
  * ```
  */
@@ -46,24 +44,6 @@ export async function resolveAuth(auth?: FirestoreAuth): Promise<ResolvedAuth> {
 
   if (!auth || auth.type === 'auto') {
     return { credential: admin.credential.applicationDefault() };
-  }
-
-  if (auth.type === 'service-account') {
-    let serviceAccount: Record<string, unknown>;
-    try {
-      const raw = readFileSync(auth.keyFilePath, 'utf-8');
-      serviceAccount = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      throw new AuthenticationError('Service account key file could not be read or parsed.', {
-        connector: CONNECTOR_NAME,
-      });
-    }
-    return {
-      credential: admin.credential.cert(
-        serviceAccount as Parameters<typeof admin.credential.cert>[0]
-      ),
-      projectId: (serviceAccount['project_id'] as string) || undefined,
-    };
   }
 
   if (auth.type === 'service-account-json') {
