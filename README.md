@@ -5,7 +5,7 @@
 
 Unified multi-datasource connection SDK for Node.js
 
-One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Firestore), and **file-based** (S3, GCS, Azure Blob) data sources. Zero-config auth, streaming-first (`AsyncIterable` / `ReadableStream`), path-traversal prevention, parameterized queries, credential redaction, CJK/Unicode path support, strict TypeScript types, and subpath exports — only install the SDKs you actually use.
+One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Firestore, MongoDB), and **file-based** (S3, GCS, Azure Blob) data sources. Zero-config auth, streaming-first (`AsyncIterable` / `ReadableStream`), path-traversal prevention, parameterized queries, credential redaction, CJK/Unicode path support, strict TypeScript types, and subpath exports — only install the SDKs you actually use.
 
 ## Supported Data Sources
 
@@ -17,6 +17,7 @@ One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Fire
 | Google Sheets        | Tabular | `venomous-datasource/google-sheets`       | `googleapis`                                                |   ✅   |
 | Firebase Firestore   | Document| `venomous-datasource/firestore`            | `firebase-admin`                                            |   ✅   |
 | Azure Blob Storage   | File    | `venomous-datasource/azure-blob-storage`  | `@azure/storage-blob` + `@azure/identity`                   |   ✅   |
+| MongoDB              | Document| `venomous-datasource/mongodb`             | `mongodb`                                                    |   ✅   |
 
 ## Installation
 
@@ -33,6 +34,7 @@ npm install @aws-sdk/client-s3 @aws-sdk/credential-providers        # S3
 npm install @google-cloud/storage                                   # GCS
 npm install @azure/storage-blob @azure/identity                     # Azure Blob
 npm install firebase-admin                                          # Firestore
+npm install mongodb                                                 # MongoDB
 ```
 
 ## Quick Start
@@ -245,6 +247,82 @@ await connector.disconnect();
 ```
 
 > Note: Firestore uses `DocumentConnector` (not `TabularConnector`). Documents use `{ id, data }` model — ID is metadata, not part of the document content. `sql()` and `like` operator are not available.
+
+</details>
+
+<details>
+<summary>MongoDB — connection string</summary>
+<br>
+
+```typescript
+import { createMongoDBConnector } from 'venomous-datasource/mongodb';
+
+const connector = createMongoDBConnector({
+  database: 'mydb',
+});
+
+await connector.connect({
+  type: 'connection-string',
+  connectionString: 'mongodb+srv://user:password@cluster.mongodb.net',
+});
+
+// List collections
+const collections = await connector.collections();
+
+// Preview first 5 documents
+const preview = await connector.peek('users', { rows: 5 });
+
+// Get a single document by ID
+const doc = await connector.getById('users', '507f1f77bcf86cd799439011');
+
+// Query with server-side filtering and cursor-based pagination
+const result = await connector.find('users', {
+  filter: [{ field: 'age', operator: 'gt', value: 18 }],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  page: { size: 20 },
+});
+
+// Insert documents
+await connector.insert('users', [
+  { id: 'custom-id', data: { name: 'Alice', age: 30 } },
+  { data: { name: 'Bob', age: 25 } }, // auto-generated ObjectId
+]);
+
+await connector.disconnect();
+```
+
+> Note: MongoDB uses `DocumentConnector` (same as Firestore). `sql()` and `like` operator are not available. `in` filter limited to 30 values.
+
+</details>
+
+<details>
+<summary>MongoDB — credentials</summary>
+<br>
+
+```typescript
+import { createMongoDBConnector } from 'venomous-datasource/mongodb';
+
+const connector = createMongoDBConnector({
+  database: 'mydb',
+});
+
+await connector.connect({
+  type: 'credentials',
+  username: 'admin',
+  password: 'your-password',
+  host: 'db.example.com',
+  port: 27017,
+  authSource: 'admin',
+});
+
+// Same API as connection-string mode
+const collections = await connector.collections();
+const preview = await connector.peek('users', { rows: 5 });
+
+await connector.disconnect();
+```
+
+> Note: Credentials are automatically URI-encoded, so special characters in username/password are handled safely.
 
 </details>
 

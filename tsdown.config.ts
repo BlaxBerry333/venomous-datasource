@@ -44,6 +44,11 @@ const config: UserConfig[] = [
     entry: ['src/firestore/index.ts'],
     outDir: 'dist/firestore',
   },
+  {
+    ...shared,
+    entry: ['src/mongodb/index.ts'],
+    outDir: 'dist/mongodb',
+  },
 ];
 
 export default config;

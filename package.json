@@ -32,6 +32,10 @@
     "./firestore": {
       "import": "./dist/firestore/index.js",
       "types": "./dist/firestore/index.d.ts"
+    },
+    "./mongodb": {
+      "import": "./dist/mongodb/index.js",
+      "types": "./dist/mongodb/index.d.ts"
     }
   },
   "files": [
@@ -57,7 +61,8 @@
     "googleapis": "^171.0.0",
     "@azure/storage-blob": "^12.25.0",
     "@azure/identity": "^4.6.0",
-    "firebase-admin": "^13.0.0"
+    "firebase-admin": "^13.0.0",
+    "mongodb": "^6.0.0"
   },
   "peerDependenciesMeta": {
     "@google-cloud/bigquery": {
@@ -86,6 +91,9 @@
     },
     "firebase-admin": {
       "optional": true
+    },
+    "mongodb": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -103,6 +111,7 @@
     "@azure/storage-blob": "^12.25.0",
     "firebase-admin": "^13.0.0",
     "googleapis": "^171.4.0",
+    "mongodb": "^6.0.0",
     "prettier": "^3.0.0",
     "tsdown": "^0.9.0",
     "tsx": "^4.21.0",

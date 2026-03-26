@@ -73,6 +73,26 @@ export type FirestoreAuth =
   | { readonly type: 'service-account-json'; readonly credentials: object };
 
 /**
+ * MongoDB authentication options (discriminated union).
+ *
+ * Three modes:
+ * - `auto`: Connect to `mongodb://localhost:27017` without authentication (local dev).
+ * - `connection-string`: User provides a full MongoDB URI (`mongodb://` or `mongodb+srv://`).
+ * - `credentials`: User provides username/password/host, program constructs the URI.
+ */
+export type MongoDBAuth =
+  | BaseAuth
+  | { readonly type: 'connection-string'; readonly connectionString: string }
+  | {
+      readonly type: 'credentials';
+      readonly username: string;
+      readonly password: string;
+      readonly host: string;
+      readonly port?: number;
+      readonly authSource?: string;
+    };
+
+/**
  * Union of all document data source auth types.
  */
-export type DocumentAuth = FirestoreAuth;
+export type DocumentAuth = FirestoreAuth | MongoDBAuth;

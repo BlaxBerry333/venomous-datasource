@@ -488,6 +488,143 @@ await connector.remove('users', {
 
 ---
 
+## MongoDB
+
+**Type:** Document (`DocumentConnector`)
+**Import:** `venomous-datasource/mongodb`
+**Peer dependencies:** `mongodb`
+
+> MongoDB uses `DocumentConnector` — the same interface as Firestore. Documents use `{ id, data }` model where ID is the `_id` field (converted to string), not part of the document content.
+
+### Options
+
+| Option                     | Type     | Required | Description                                          |
+| -------------------------- | -------- | -------- | ---------------------------------------------------- |
+| `database`                 | `string` | Yes      | Database name                                        |
+| `connectTimeoutMS`         | `number` | No       | Connection timeout in ms (default: 10000)            |
+| `serverSelectionTimeoutMS` | `number` | No       | Server selection timeout in ms (default: 10000)      |
+
+### Authentication
+
+| Type                | Fields                                                        | Description                                          |
+| ------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| `auto` (default)    | —                                                             | Connects to `mongodb://localhost:27017`               |
+| `connection-string` | `connectionString`                                            | Full MongoDB connection string (`mongodb://` or `mongodb+srv://`) |
+| `credentials`       | `username`, `password`, `host`, `port?`, `authSource?`        | Username/password with host. Credentials are URI-encoded automatically |
+
+### Usage
+
+```typescript
+import { createMongoDBConnector } from 'venomous-datasource/mongodb';
+
+const connector = createMongoDBConnector({
+  database: 'mydb',
+});
+
+// Auto auth — connects to localhost:27017
+await connector.connect();
+
+// Or with connection string
+// await connector.connect({
+//   type: 'connection-string',
+//   connectionString: 'mongodb+srv://user:pass@cluster.mongodb.net',
+// });
+
+// Or with explicit credentials
+// await connector.connect({
+//   type: 'credentials',
+//   username: 'admin',
+//   password: 'secret',
+//   host: 'db.example.com',
+//   port: 27017,
+//   authSource: 'admin',
+// });
+```
+
+#### List collections
+
+```typescript
+const collections = await connector.collections();
+// [{ name: 'users' }, { name: 'orders' }, ...]
+```
+
+#### Preview documents
+
+```typescript
+const preview = await connector.peek('users', { rows: 5 });
+console.log(preview.data);   // Document[] — [{ id: '507f...', data: { name: 'Alice', age: 30 } }, ...]
+console.log(preview.fields); // FieldInfo[] — inferred from sampled docs
+```
+
+> Field types are inferred from document values: `STRING`, `NUMBER`, `BOOLEAN`, `DATE`, `OBJECTID`, `ARRAY`, `OBJECT`, `BINARY`, `NULL`.
+
+#### Get document by ID
+
+```typescript
+const doc = await connector.getById('users', '507f1f77bcf86cd799439011');
+// { id: '507f1f77bcf86cd799439011', data: { name: 'Alice', age: 30 } }
+// Returns null if not found
+```
+
+#### Query with server-side filtering
+
+```typescript
+const result = await connector.find('users', {
+  filter: [
+    { field: 'age', operator: 'gt', value: 18 },
+    { field: 'status', operator: 'eq', value: 'active' },
+  ],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  page: { size: 20 },
+});
+
+console.log(result.data);       // Document[]
+console.log(result.hasMore);    // boolean
+console.log(result.nextCursor); // pass to next request
+```
+
+> `find()` uses MongoDB server-side filtering with cursor-based pagination. Cursor values are type-tagged to preserve correct comparison across `string`, `number`, `Date`, `ObjectId`, etc.
+
+#### Insert documents
+
+```typescript
+const result = await connector.insert('users', [
+  { id: 'custom-id', data: { name: 'Bob', age: 25 } },   // explicit string ID
+  { data: { name: 'Charlie', age: 35 } },                  // auto-generated ObjectId
+]);
+console.log(result.insertedIds); // ['custom-id', '507f...']
+```
+
+> Documents are inserted in batches of 1000. Partial failures report the count of successfully inserted documents in the error message.
+
+#### Update / Delete documents
+
+```typescript
+// Update documents matching filter
+await connector.update('users', {
+  filter: [{ field: 'status', operator: 'eq', value: 'inactive' }],
+  set: { status: 'archived' },
+});
+
+// Delete documents matching filter
+await connector.remove('users', {
+  filter: [{ field: 'status', operator: 'eq', value: 'archived' }],
+});
+```
+
+> Empty filter is rejected for safety. `update()` uses MongoDB `$set` operator — only specified fields are modified. Both `update()` and `remove()` operate directly on server with a single command (no query-then-modify).
+
+#### Limitations
+
+| Limitation     | Details |
+| -------------- | ------- |
+| No `sql()`     | Not part of `DocumentConnector` interface |
+| No `like`      | Not in `DocFilterOperator` |
+| `in` max 30    | Capped at 30 values per `in` filter |
+| Cursor-based   | Pagination uses type-tagged cursor values, not offset |
+
+---
+
 ## Azure Blob Storage
 
 **Type:** File (`FileConnector`)
