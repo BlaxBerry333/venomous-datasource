@@ -5,13 +5,12 @@ export type { DocumentConnector } from './interfaces/document-connector.js';
 
 // Types
 export type {
-  BaseAuth,
   BigQueryAuth,
-  S3Auth,
   GCSAuth,
   SheetsAuth,
-  AzureBlobAuth,
   FirestoreAuth,
+  S3Auth,
+  AzureBlobAuth,
   MongoDBAuth,
   TabularAuth,
   FileAuth,

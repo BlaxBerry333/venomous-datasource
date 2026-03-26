@@ -37,7 +37,7 @@ describe('resolveAuth', () => {
     expect(result.projectId).toBeUndefined();
   });
 
-  it('should return cert credential for service-account-json auth', async () => {
+  it('should return cert credential for credentials auth', async () => {
     const credentials = {
       project_id: 'json-project',
       client_email: 'test@test.iam.gserviceaccount.com',
@@ -46,9 +46,23 @@ describe('resolveAuth', () => {
 
     const { resolveAuth } = await import('./auth.js');
     const result = await resolveAuth({
-      type: 'service-account-json',
+      type: 'credentials',
       credentials,
     });
+
+    expect(mockCert).toHaveBeenCalledWith(credentials);
+    expect(result.projectId).toBe('json-project');
+  });
+
+  it('should return cert credential when type is omitted', async () => {
+    const credentials = {
+      project_id: 'json-project',
+      client_email: 'test@test.iam.gserviceaccount.com',
+      private_key: 'key',
+    };
+
+    const { resolveAuth } = await import('./auth.js');
+    const result = await resolveAuth({ credentials });
 
     expect(mockCert).toHaveBeenCalledWith(credentials);
     expect(result.projectId).toBe('json-project');
@@ -62,7 +76,7 @@ describe('resolveAuth', () => {
 
     const { resolveAuth } = await import('./auth.js');
     const result = await resolveAuth({
-      type: 'service-account-json',
+      type: 'credentials',
       credentials,
     });
 

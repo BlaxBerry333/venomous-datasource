@@ -22,7 +22,7 @@ describe('resolveAuth', () => {
     expect(result).toEqual({ projectId: 'my-project' });
   });
 
-  it('returns credentials for service-account-json auth', () => {
+  it('returns credentials for credentials auth', () => {
     const creds = {
       type: 'service_account',
       project_id: 'test-project',
@@ -31,7 +31,7 @@ describe('resolveAuth', () => {
     };
 
     const result = resolveAuth({
-      type: 'service-account-json',
+      type: 'credentials',
       credentials: creds,
     });
 
@@ -40,12 +40,27 @@ describe('resolveAuth', () => {
     });
   });
 
-  it('includes projectId with service-account-json auth', () => {
+  it('returns credentials when type is omitted', () => {
+    const creds = {
+      type: 'service_account',
+      project_id: 'test-project',
+      private_key: 'pk',
+      client_email: 'test@test.iam.gserviceaccount.com',
+    };
+
+    const result = resolveAuth({ credentials: creds });
+
+    expect(result).toEqual({
+      credentials: creds,
+    });
+  });
+
+  it('includes projectId with credentials auth', () => {
     const creds = { type: 'service_account', project_id: 'test-project' };
 
     const result = resolveAuth(
       {
-        type: 'service-account-json',
+        type: 'credentials',
         credentials: creds,
       },
       'override-project'
@@ -53,5 +68,10 @@ describe('resolveAuth', () => {
 
     expect(result.projectId).toBe('override-project');
     expect(result.credentials).toBe(creds);
+  });
+
+  it('throws for unknown auth type', () => {
+    const badAuth = { type: 'unknown' } as never;
+    expect(() => resolveAuth(badAuth)).toThrow('Unknown auth type');
   });
 });

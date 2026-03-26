@@ -14,15 +14,27 @@ describe('resolveAuth', () => {
     expect(result).toEqual({ scopes: [SHEETS_SCOPE] });
   });
 
-  it('returns credentials for service-account-json auth', () => {
+  it('returns credentials for credentials auth', () => {
     const creds = {
       client_email: 'test@test.iam.gserviceaccount.com',
       private_key: 'key',
     };
     const result = resolveAuth({
-      type: 'service-account-json',
+      type: 'credentials',
       credentials: creds,
     });
+    expect(result).toEqual({
+      scopes: [SHEETS_SCOPE],
+      credentials: creds,
+    });
+  });
+
+  it('returns credentials when type is omitted', () => {
+    const creds = {
+      client_email: 'test@test.iam.gserviceaccount.com',
+      private_key: 'key',
+    };
+    const result = resolveAuth({ credentials: creds });
     expect(result).toEqual({
       scopes: [SHEETS_SCOPE],
       credentials: creds,

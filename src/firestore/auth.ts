@@ -27,7 +27,7 @@ export interface ResolvedAuth {
  * const resolved = await resolveAuth({ type: 'auto' });
  * // { credential: applicationDefault() }
  *
- * const resolved2 = await resolveAuth({ type: 'service-account-json', credentials: {...} });
+ * const resolved2 = await resolveAuth({ credentials: {...} });
  * // { credential: cert(...), projectId: 'my-project' }
  * ```
  */
@@ -46,7 +46,7 @@ export async function resolveAuth(auth?: FirestoreAuth): Promise<ResolvedAuth> {
     return { credential: admin.credential.applicationDefault() };
   }
 
-  if (auth.type === 'service-account-json') {
+  if (!auth.type || auth.type === 'credentials') {
     const credentials = auth.credentials as Record<string, unknown>;
     return {
       credential: admin.credential.cert(credentials as Parameters<typeof admin.credential.cert>[0]),
@@ -54,7 +54,8 @@ export async function resolveAuth(auth?: FirestoreAuth): Promise<ResolvedAuth> {
     };
   }
 
-  // Exhaustive check
-  const _exhaustive: never = auth;
-  throw new Error(`Unknown auth type: ${JSON.stringify(_exhaustive)}`);
+  // Exhaustive check (`const _exhaustive: never = auth`) is not possible here
+  // because `type` is optional — TypeScript cannot narrow an optional discriminant.
+  // This throw is a runtime guard for unknown auth types (e.g. bypassing via `as any`).
+  throw new Error(`Unknown auth type: ${JSON.stringify(auth)}`);
 }

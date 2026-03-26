@@ -29,10 +29,7 @@ interface GoogleAuthConfig {
  * const config = resolveAuth({ type: 'auto' });
  * // { scopes: ['https://www.googleapis.com/auth/spreadsheets'] }
  *
- * const config2 = resolveAuth({
- *   type: 'service-account-json',
- *   credentials: {...},
- * });
+ * const config2 = resolveAuth({ credentials: {...} });
  * // { scopes: [...], credentials: {...} }
  * ```
  */
@@ -43,11 +40,12 @@ export function resolveAuth(auth?: SheetsAuth): GoogleAuthConfig {
     return base;
   }
 
-  if (auth.type === 'service-account-json') {
+  if (!auth.type || auth.type === 'credentials') {
     return { ...base, credentials: auth.credentials };
   }
 
-  // Exhaustive check
-  const _exhaustive: never = auth;
-  throw new Error(`Unknown auth type: ${JSON.stringify(_exhaustive)}`);
+  // Exhaustive check (`const _exhaustive: never = auth`) is not possible here
+  // because `type` is optional — TypeScript cannot narrow an optional discriminant.
+  // This throw is a runtime guard for unknown auth types (e.g. bypassing via `as any`).
+  throw new Error(`Unknown auth type: ${JSON.stringify(auth)}`);
 }

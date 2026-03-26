@@ -124,93 +124,6 @@ for await (const row of connector.sql('SELECT name, email FROM users WHERE age >
 
 ---
 
-## Amazon S3
-
-**Type:** File (`FileConnector`)
-**Import:** `venomous-datasource/s3`
-**Peer dependencies:** `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`
-
-### Options
-
-| Option   | Type     | Required | Description                                                  |
-| -------- | -------- | -------- | ------------------------------------------------------------ |
-| `bucket` | `string` | Yes      | S3 bucket name                                               |
-| `prefix` | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`) |
-| `region` | `string` | No       | AWS region (e.g., `'us-east-1'`)                             |
-
-### Authentication
-
-| Type             | Fields                                     | Description                                             |
-| ---------------- | ------------------------------------------ | ------------------------------------------------------- |
-| `auto` (default) | —                                          | Default AWS credential chain (env vars, IAM role, etc.) |
-| `access-key`     | `accessKeyId`, `secretAccessKey`, `region` | Static access key                                       |
-| `profile`        | `profileName`, `region?`                   | Named AWS profile from `~/.aws/credentials`             |
-
-### Usage
-
-```typescript
-import { createS3Connector } from 'venomous-datasource/s3';
-
-const connector = createS3Connector({
-  bucket: 'my-bucket',
-  prefix: 'data/',
-  region: 'ap-northeast-1',
-});
-
-// Auto auth (default)
-await connector.connect();
-
-// Or with explicit credentials
-// await connector.connect({
-//   type: 'access-key',
-//   accessKeyId: 'AKIA_YOUR_KEY',
-//   secretAccessKey: 'your-secret',
-//   region: 'us-east-1',
-// });
-```
-
-#### List files
-
-```typescript
-const result = await connector.files('reports/', { page: { size: 20 } });
-console.log(result.data); // FileInfo[] (name, path, size, lastModified, contentType)
-
-// Pagination
-if (result.hasMore) {
-  const next = await connector.files('reports/', {
-    page: { size: 20, cursor: result.nextCursor },
-  });
-}
-```
-
-#### Preview CSV/JSON content
-
-```typescript
-const preview = await connector.peek('reports/summary.csv', { rows: 10 });
-console.log(preview.data); // Row[]
-```
-
-#### Read file as stream
-
-```typescript
-const stream = await connector.read('reports/summary.csv');
-const reader = stream.getReader();
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  process.stdout.write(value);
-}
-```
-
-#### Get file metadata
-
-```typescript
-const info = await connector.stat('reports/summary.csv');
-console.log(info.size, info.lastModified, info.contentType);
-```
-
----
-
 ## Google Cloud Storage
 
 **Type:** File (`FileConnector`)
@@ -227,10 +140,12 @@ console.log(info.size, info.lastModified, info.contentType);
 
 ### Authentication
 
-| Type                   | Fields        | Description                               |
-| ---------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account-json` | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                               |
+| ----------------------- | ------------- | ----------------------------------------- |
+| `auto` (default)        | —             | Application Default Credentials (ADC)     |
+| `credentials` (default) | `credentials` | Service account credentials object        |
+
+> The `type` field can be omitted when using `credentials` — it defaults to `'credentials'`.
 
 ### Usage
 
@@ -248,7 +163,6 @@ await connector.connect();
 
 // Or with explicit service account
 // await connector.connect({
-//   type: 'service-account-json',
 //   credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
 // });
 ```
@@ -303,10 +217,12 @@ console.log(info.size, info.lastModified, info.contentType);
 
 ### Authentication
 
-| Type                   | Fields        | Description                               |
-| ---------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account-json` | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                               |
+| ----------------------- | ------------- | ----------------------------------------- |
+| `auto` (default)        | —             | Application Default Credentials (ADC)     |
+| `credentials` (default) | `credentials` | Service account credentials object        |
+
+> The `type` field can be omitted when using `credentials` — it defaults to `'credentials'`.
 
 ### Usage
 
@@ -318,7 +234,6 @@ const connector = createSheetsConnector({
 });
 
 await connector.connect({
-  type: 'service-account-json',
   // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
   credentials: {
     type: 'service_account',
@@ -401,10 +316,12 @@ await connector.remove('Sheet1', {
 
 ### Authentication
 
-| Type                   | Fields        | Description                               |
-| ---------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)       | —             | Application Default Credentials (ADC)     |
-| `service-account-json` | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                               |
+| ----------------------- | ------------- | ----------------------------------------- |
+| `auto` (default)        | —             | Application Default Credentials (ADC)     |
+| `credentials` (default) | `credentials` | Service account credentials object        |
+
+> The `type` field can be omitted when using `credentials` — it defaults to `'credentials'`.
 
 ### Usage
 
@@ -501,6 +418,174 @@ await connector.remove('users', {
 | No `like`      | Not in `DocFilterOperator` — Firestore has no regex/LIKE capability |
 | `in` max 30    | Firestore limits `in` queries to 30 values |
 | Server-side    | Complex queries may require composite indexes |
+
+---
+
+## Amazon S3
+
+**Type:** File (`FileConnector`)
+**Import:** `venomous-datasource/s3`
+**Peer dependencies:** `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`
+
+### Options
+
+| Option   | Type     | Required | Description                                                  |
+| -------- | -------- | -------- | ------------------------------------------------------------ |
+| `bucket` | `string` | Yes      | S3 bucket name                                               |
+| `prefix` | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`) |
+| `region` | `string` | No       | AWS region (e.g., `'us-east-1'`)                             |
+
+### Authentication
+
+| Type             | Fields                                     | Description                                             |
+| ---------------- | ------------------------------------------ | ------------------------------------------------------- |
+| `auto` (default) | —                                          | Default AWS credential chain (env vars, IAM role, etc.) |
+| `access-key`     | `accessKeyId`, `secretAccessKey`, `region` | Static access key                                       |
+| `profile`        | `profileName`, `region?`                   | Named AWS profile from `~/.aws/credentials`             |
+
+### Usage
+
+```typescript
+import { createS3Connector } from 'venomous-datasource/s3';
+
+const connector = createS3Connector({
+  bucket: 'my-bucket',
+  prefix: 'data/',
+  region: 'ap-northeast-1',
+});
+
+// Auto auth (default)
+await connector.connect();
+
+// Or with explicit credentials
+// await connector.connect({
+//   type: 'access-key',
+//   accessKeyId: 'AKIA_YOUR_KEY',
+//   secretAccessKey: 'your-secret',
+//   region: 'us-east-1',
+// });
+```
+
+#### List files
+
+```typescript
+const result = await connector.files('reports/', { page: { size: 20 } });
+console.log(result.data); // FileInfo[] (name, path, size, lastModified, contentType)
+
+// Pagination
+if (result.hasMore) {
+  const next = await connector.files('reports/', {
+    page: { size: 20, cursor: result.nextCursor },
+  });
+}
+```
+
+#### Preview CSV/JSON content
+
+```typescript
+const preview = await connector.peek('reports/summary.csv', { rows: 10 });
+console.log(preview.data); // Row[]
+```
+
+#### Read file as stream
+
+```typescript
+const stream = await connector.read('reports/summary.csv');
+const reader = stream.getReader();
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  process.stdout.write(value);
+}
+```
+
+#### Get file metadata
+
+```typescript
+const info = await connector.stat('reports/summary.csv');
+console.log(info.size, info.lastModified, info.contentType);
+```
+
+---
+
+## Azure Blob Storage
+
+**Type:** File (`FileConnector`)
+**Import:** `venomous-datasource/azure-blob-storage`
+**Peer dependencies:** `@azure/storage-blob` + `@azure/identity` (for `auto` auth mode)
+
+### Options
+
+| Option        | Type     | Required | Description                                                                  |
+| ------------- | -------- | -------- | ---------------------------------------------------------------------------- |
+| `container`   | `string` | Yes      | Azure Blob container name                                                    |
+| `prefix`      | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`)                 |
+| `accountName` | `string` | No*      | Storage account name. Required for `auto`, `sas-token`, `account-key` modes  |
+
+> \* `accountName` is extracted automatically for `connection-string` mode.
+
+### Authentication
+
+| Type                | Fields                          | Description                                           |
+| ------------------- | ------------------------------- | ----------------------------------------------------- |
+| `auto` (default)    | —                               | DefaultAzureCredential (requires `@azure/identity`)   |
+| `connection-string` | `connectionString`              | Azure Storage connection string                       |
+| `sas-token`         | `accountName`, `sasToken`       | Shared Access Signature token                         |
+| `account-key`       | `accountName`, `accountKey`     | Storage Account Name + Account Key                    |
+
+### Usage
+
+```typescript
+import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+
+const connector = createAzureBlobConnector({
+  container: 'my-container',
+  prefix: 'data/',
+  accountName: 'mystorageaccount',
+});
+
+// Auto auth (DefaultAzureCredential)
+await connector.connect();
+
+// Or with connection string
+// await connector.connect({
+//   type: 'connection-string',
+//   connectionString: 'DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;...',
+// });
+```
+
+#### List files
+
+```typescript
+const result = await connector.files('reports/', { page: { size: 20 } });
+console.log(result.data); // FileInfo[] (name, path, size, lastModified, contentType)
+```
+
+#### Preview CSV/JSON content
+
+```typescript
+const preview = await connector.peek('data/report.csv', { rows: 10 });
+console.log(preview.data); // Row[]
+```
+
+#### Read file as stream
+
+```typescript
+const stream = await connector.read('data/report.csv');
+const reader = stream.getReader();
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  process.stdout.write(value);
+}
+```
+
+#### Get file metadata
+
+```typescript
+const info = await connector.stat('data/report.csv');
+console.log(info.size, info.lastModified, info.contentType);
+```
 
 ---
 
@@ -638,84 +723,3 @@ await connector.remove('users', {
 | No `like`      | Not in `DocFilterOperator` |
 | `in` max 30    | Capped at 30 values per `in` filter |
 | Cursor-based   | Pagination uses type-tagged cursor values, not offset |
-
----
-
-## Azure Blob Storage
-
-**Type:** File (`FileConnector`)
-**Import:** `venomous-datasource/azure-blob-storage`
-**Peer dependencies:** `@azure/storage-blob` + `@azure/identity` (for `auto` auth mode)
-
-### Options
-
-| Option        | Type     | Required | Description                                                                  |
-| ------------- | -------- | -------- | ---------------------------------------------------------------------------- |
-| `container`   | `string` | Yes      | Azure Blob container name                                                    |
-| `prefix`      | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`)                 |
-| `accountName` | `string` | No*      | Storage account name. Required for `auto`, `sas-token`, `account-key` modes  |
-
-> \* `accountName` is extracted automatically for `connection-string` mode.
-
-### Authentication
-
-| Type                | Fields                          | Description                                           |
-| ------------------- | ------------------------------- | ----------------------------------------------------- |
-| `auto` (default)    | —                               | DefaultAzureCredential (requires `@azure/identity`)   |
-| `connection-string` | `connectionString`              | Azure Storage connection string                       |
-| `sas-token`         | `accountName`, `sasToken`       | Shared Access Signature token                         |
-| `account-key`       | `accountName`, `accountKey`     | Storage Account Name + Account Key                    |
-
-### Usage
-
-```typescript
-import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
-
-const connector = createAzureBlobConnector({
-  container: 'my-container',
-  prefix: 'data/',
-  accountName: 'mystorageaccount',
-});
-
-// Auto auth (DefaultAzureCredential)
-await connector.connect();
-
-// Or with connection string
-// await connector.connect({
-//   type: 'connection-string',
-//   connectionString: 'DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;...',
-// });
-```
-
-#### List files
-
-```typescript
-const result = await connector.files('reports/', { page: { size: 20 } });
-console.log(result.data); // FileInfo[] (name, path, size, lastModified, contentType)
-```
-
-#### Preview CSV/JSON content
-
-```typescript
-const preview = await connector.peek('data/report.csv', { rows: 10 });
-console.log(preview.data); // Row[]
-```
-
-#### Read file as stream
-
-```typescript
-const stream = await connector.read('data/report.csv');
-const reader = stream.getReader();
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  process.stdout.write(value);
-}
-```
-
-#### Get file metadata
-
-```typescript
-const info = await connector.stat('data/report.csv');
-console.log(info.size, info.lastModified, info.contentType);
-```

@@ -9,15 +9,15 @@ One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Fire
 
 ## Supported Data Sources
 
-| Data Source          | Type     | Import Path                              | Required Peer Dependency                                    | Status |
-| -------------------- | -------- | ---------------------------------------- | ----------------------------------------------------------- | :----: |
-| Amazon S3            | File     | `venomous-datasource/s3`                 | `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`      |   ✅   |
-| BigQuery             | Tabular  | `venomous-datasource/bigquery`           | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |   ✅   |
-| Google Cloud Storage | File     | `venomous-datasource/gcs`                | `@google-cloud/storage`                                     |   ✅   |
-| Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |   ✅   |
-| Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |   ✅   |
-| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob` + `@azure/identity`                   |   ✅   |
-| MongoDB              | Document | `venomous-datasource/mongodb`            | `mongodb`                                                   |   ✅   |
+| Data Source          | Type     | Import Path                              | Required Peer Dependency                                    |
+| -------------------- | -------- | ---------------------------------------- | ----------------------------------------------------------- |
+| BigQuery             | Tabular  | `venomous-datasource/bigquery`           | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |
+| Google Cloud Storage | File     | `venomous-datasource/gcs`                | `@google-cloud/storage`                                     |
+| Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |
+| Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |
+| Amazon S3            | File     | `venomous-datasource/s3`                 | `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`      |
+| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob` + `@azure/identity`                   |
+| MongoDB              | Document | `venomous-datasource/mongodb`            | `mongodb`                                                   |
 
 ## Installation
 
@@ -30,10 +30,10 @@ npm install github:BlaxBerry333/venomous-datasource#release
 # Then install peer dependencies for the data sources you need:
 npm install @google-cloud/bigquery @google-cloud/resource-manager   # BigQuery
 npm install googleapis                                              # Google Sheets
-npm install @aws-sdk/client-s3 @aws-sdk/credential-providers        # S3
 npm install @google-cloud/storage                                   # GCS
-npm install @azure/storage-blob @azure/identity                     # Azure Blob
 npm install firebase-admin                                          # Firestore
+npm install @aws-sdk/client-s3 @aws-sdk/credential-providers        # S3
+npm install @azure/storage-blob @azure/identity                     # Azure Blob
 npm install mongodb                                                 # MongoDB
 ```
 
@@ -70,75 +70,6 @@ await connector.disconnect();
 </details>
 
 <details>
-<summary>Amazon S3</summary>
-<br>
-
-```typescript
-import { createS3Connector } from 'venomous-datasource/s3';
-
-const connector = createS3Connector({
-  bucket: 'your-bucket',
-  prefix: 'data/',
-  region: 'ap-northeast-1',
-});
-
-// Uses default AWS credential chain (env vars, IAM role, etc.)
-await connector.connect();
-
-// List files with pagination
-const files = await connector.files('reports/', { page: { size: 20 } });
-
-// Read file as a ReadableStream
-const stream = await connector.read('reports/summary.csv');
-
-// Get file metadata (size, lastModified, contentType)
-const info = await connector.stat('reports/summary.csv');
-
-await connector.disconnect();
-```
-
-</details>
-
-<details>
-<summary>Google Sheets</summary>
-<br>
-
-```typescript
-import { createSheetsConnector } from 'venomous-datasource/google-sheets';
-
-const connector = createSheetsConnector({
-  spreadsheetId: 'abc123def456...',
-});
-
-await connector.connect({
-  type: 'service-account-json',
-  // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
-  credentials: {
-    type: 'service_account',
-    project_id: 'your-project-id',
-    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
-    client_email: 'sa@your-project-id.iam.gserviceaccount.com',
-  },
-});
-
-// List all sheets in the spreadsheet
-const sheets = await connector.tables();
-
-// Preview first 5 rows of a sheet
-const preview = await connector.peek(sheets[0].name, { rows: 5 });
-
-// Insert rows
-await connector.insert('Sheet1', [
-  { name: 'Alice', age: 30 },
-  { name: 'Bob', age: 25 },
-]);
-
-await connector.disconnect();
-```
-
-</details>
-
-<details>
 <summary>Google Cloud Storage</summary>
 <br>
 
@@ -166,23 +97,37 @@ await connector.disconnect();
 </details>
 
 <details>
-<summary>Azure Blob Storage</summary>
+<summary>Google Sheets</summary>
 <br>
 
 ```typescript
-import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+import { createSheetsConnector } from 'venomous-datasource/google-sheets';
 
-const connector = createAzureBlobConnector({
-  container: 'my-container',
-  prefix: 'data/',
-  accountName: 'mystorageaccount',
+const connector = createSheetsConnector({
+  spreadsheetId: 'abc123def456...',
 });
 
-await connector.connect(); // Uses DefaultAzureCredential
+await connector.connect({
+  // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
+  credentials: {
+    type: 'service_account',
+    project_id: 'your-project-id',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@your-project-id.iam.gserviceaccount.com',
+  },
+});
 
-const files = await connector.files('reports/');
-const preview = await connector.peek('data/report.csv', { rows: 10 });
-const stream = await connector.read('data/report.csv');
+// List all sheets in the spreadsheet
+const sheets = await connector.tables();
+
+// Preview first 5 rows of a sheet
+const preview = await connector.peek(sheets[0].name, { rows: 5 });
+
+// Insert rows
+await connector.insert('Sheet1', [
+  { name: 'Alice', age: 30 },
+  { name: 'Bob', age: 25 },
+]);
 
 await connector.disconnect();
 ```
@@ -230,6 +175,60 @@ await connector.disconnect();
 ```
 
 > Note: Firestore uses `DocumentConnector` (not `TabularConnector`). Documents use `{ id, data }` model — ID is metadata, not part of the document content. `sql()` and `like` operator are not available.
+
+</details>
+
+<details>
+<summary>Amazon S3</summary>
+<br>
+
+```typescript
+import { createS3Connector } from 'venomous-datasource/s3';
+
+const connector = createS3Connector({
+  bucket: 'your-bucket',
+  prefix: 'data/',
+  region: 'ap-northeast-1',
+});
+
+// Uses default AWS credential chain (env vars, IAM role, etc.)
+await connector.connect();
+
+// List files with pagination
+const files = await connector.files('reports/', { page: { size: 20 } });
+
+// Read file as a ReadableStream
+const stream = await connector.read('reports/summary.csv');
+
+// Get file metadata (size, lastModified, contentType)
+const info = await connector.stat('reports/summary.csv');
+
+await connector.disconnect();
+```
+
+</details>
+
+<details>
+<summary>Azure Blob Storage</summary>
+<br>
+
+```typescript
+import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+
+const connector = createAzureBlobConnector({
+  container: 'my-container',
+  prefix: 'data/',
+  accountName: 'mystorageaccount',
+});
+
+await connector.connect(); // Uses DefaultAzureCredential
+
+const files = await connector.files('reports/');
+const preview = await connector.peek('data/report.csv', { rows: 10 });
+const stream = await connector.read('data/report.csv');
+
+await connector.disconnect();
+```
 
 </details>
 

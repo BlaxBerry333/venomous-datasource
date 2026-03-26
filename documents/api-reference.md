@@ -110,39 +110,44 @@ Interface for file-based data source connectors (e.g., S3, GCS).
 Most connectors default to `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery is an exception — it requires explicit authentication (`credentials`).
 
 ```typescript
-// Base — all connectors support this
-interface BaseAuth {
-  readonly type: 'auto';
-}
+// ── Google Cloud ──
 
 // BigQuery (no auto — explicit auth required, type is optional)
 type BigQueryAuth = { type?: 'credentials'; credentials: object };
 
 type GCSAuth =
-  | BaseAuth
-  | { type: 'service-account-json'; credentials: object };
+  | { type: 'auto' }
+  | { type?: 'credentials'; credentials: object };
 
 type SheetsAuth =
-  | BaseAuth
-  | { type: 'service-account-json'; credentials: object };
+  | { type: 'auto' }
+  | { type?: 'credentials'; credentials: object };
 
-// Firestore (DocumentConnector — same Google auth modes)
 type FirestoreAuth =
-  | BaseAuth
-  | { type: 'service-account-json'; credentials: object };
+  | { type: 'auto' }
+  | { type?: 'credentials'; credentials: object };
 
-// S3
+// ── AWS ──
+
 type S3Auth =
-  | BaseAuth
+  | { type: 'auto' }
   | { type: 'access-key'; accessKeyId: string; secretAccessKey: string; region: string }
   | { type: 'profile'; profileName: string; region?: string };
 
-// Azure Blob Storage
+// ── Azure ──
+
 type AzureBlobAuth =
-  | BaseAuth
+  | { type: 'auto' }
   | { type: 'connection-string'; connectionString: string }
   | { type: 'sas-token'; accountName: string; sasToken: string }
   | { type: 'account-key'; accountName: string; accountKey: string };
+
+// ── MongoDB ──
+
+type MongoDBAuth =
+  | { type: 'auto' }
+  | { type: 'connection-string'; connectionString: string }
+  | { type: 'credentials'; username: string; password: string; host: string; port?: number; authSource?: string };
 ```
 
 ### Pagination
