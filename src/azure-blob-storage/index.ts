@@ -1,10 +1,10 @@
-export type { AzureBlobAuth } from '../core/index.js';
-export type { AzureBlobOptions } from './types.js';
-export { AzureBlobConnector } from './connector.js';
+export type { AzureBlobStorageAuth } from '../core/index.js';
+export type { AzureBlobStorageOptions } from './types.js';
+export { AzureBlobStorageConnector } from './connector.js';
 
-import type { FileConnector, AzureBlobAuth } from '../core/index.js';
-import { AzureBlobConnector } from './connector.js';
-import type { AzureBlobOptions } from './types.js';
+import type { FileConnector, AzureBlobStorageAuth } from '../core/index.js';
+import { AzureBlobStorageConnector } from './connector.js';
+import type { AzureBlobStorageOptions } from './types.js';
 
 /**
  * Create an Azure Blob Storage connector instance.
@@ -14,19 +14,20 @@ import type { AzureBlobOptions } from './types.js';
  *
  * @example
  * ```typescript
- * import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+ * import { createAzureBlobStorageConnector } from 'venomous-datasource/azure-blob-storage';
  *
- * const connector = createAzureBlobConnector({
+ * const connector = createAzureBlobStorageConnector({
  *   container: 'my-container',
  *   prefix: 'data/',
- *   accountName: 'mystorageaccount',
  * });
  *
- * await connector.connect(); // uses DefaultAzureCredential
+ * await connector.connect({ type: 'connection-string', connectionString: '...' });
  * const files = await connector.files('reports/');
  * await connector.disconnect();
  * ```
  */
-export function createAzureBlobConnector(options: AzureBlobOptions): FileConnector<AzureBlobAuth> {
-  return new AzureBlobConnector(options);
+export function createAzureBlobStorageConnector(
+  options: AzureBlobStorageOptions
+): FileConnector<AzureBlobStorageAuth> {
+  return new AzureBlobStorageConnector(options);
 }

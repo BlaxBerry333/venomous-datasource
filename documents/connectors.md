@@ -515,7 +515,7 @@ console.log(info.size, info.lastModified, info.contentType);
 
 **Type:** File (`FileConnector`)
 **Import:** `venomous-datasource/azure-blob-storage`
-**Peer dependencies:** `@azure/storage-blob` + `@azure/identity` (for `auto` auth mode)
+**Peer dependencies:** `@azure/storage-blob`
 
 ### Options
 
@@ -523,7 +523,7 @@ console.log(info.size, info.lastModified, info.contentType);
 | ------------- | -------- | -------- | ---------------------------------------------------------------------------- |
 | `container`   | `string` | Yes      | Azure Blob container name                                                    |
 | `prefix`      | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`)                 |
-| `accountName` | `string` | No*      | Storage account name. Required for `auto`, `sas-token`, `account-key` modes  |
+| `accountName` | `string` | No*      | Storage account name. Required for `sas-token` mode                          |
 
 > \* `accountName` is extracted automatically for `connection-string` mode.
 
@@ -531,30 +531,24 @@ console.log(info.size, info.lastModified, info.contentType);
 
 | Type                | Fields                          | Description                                           |
 | ------------------- | ------------------------------- | ----------------------------------------------------- |
-| `auto` (default)    | —                               | DefaultAzureCredential (requires `@azure/identity`)   |
 | `connection-string` | `connectionString`              | Azure Storage connection string                       |
 | `sas-token`         | `accountName`, `sasToken`       | Shared Access Signature token                         |
-| `account-key`       | `accountName`, `accountKey`     | Storage Account Name + Account Key                    |
 
 ### Usage
 
 ```typescript
-import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+import { createAzureBlobStorageConnector } from 'venomous-datasource/azure-blob-storage';
 
-const connector = createAzureBlobConnector({
+const connector = createAzureBlobStorageConnector({
   container: 'my-container',
   prefix: 'data/',
-  accountName: 'mystorageaccount',
 });
 
-// Auto auth (DefaultAzureCredential)
-await connector.connect();
-
-// Or with connection string
-// await connector.connect({
-//   type: 'connection-string',
-//   connectionString: 'DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;...',
-// });
+// Explicit credentials required
+await connector.connect({
+  type: 'connection-string',
+  connectionString: 'DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;...',
+});
 ```
 
 #### List files

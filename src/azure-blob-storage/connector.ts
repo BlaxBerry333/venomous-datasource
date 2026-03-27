@@ -1,7 +1,7 @@
 import type { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import type {
   FileConnector,
-  AzureBlobAuth,
+  AzureBlobStorageAuth,
   FileInfo,
   PeekResult,
   WriteResult,
@@ -23,7 +23,7 @@ import {
 import { resolveAuth } from './auth.js';
 import { toBlobPath, fromBlobPath, toBlobPrefix } from './path.js';
 import { parseCsv, parseJson, getFileFormat } from '../core/index.js';
-import type { AzureBlobOptions } from './types.js';
+import type { AzureBlobStorageOptions } from './types.js';
 import { Readable } from 'node:stream';
 
 const CONNECTOR_NAME = 'azure-blob-storage';
@@ -152,7 +152,7 @@ function wrapError(err: unknown, defaultMessage: string): never {
 }
 
 /**
- * AzureBlobConnector implements FileConnector for Azure Blob Storage.
+ * AzureBlobStorageConnector implements FileConnector for Azure Blob Storage.
  *
  * Uses `@azure/storage-blob` SDK. Azure Blob Storage natively supports UTF-8
  * blob names, so NO percent-encoding is applied to CJK/Unicode paths.
@@ -160,24 +160,22 @@ function wrapError(err: unknown, defaultMessage: string): never {
  *
  * @example
  * ```typescript
- * import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+ * import { createAzureBlobStorageConnector } from 'venomous-datasource/azure-blob-storage';
  *
- * const connector = createAzureBlobConnector({
+ * const connector = createAzureBlobStorageConnector({
  *   container: 'my-container',
  *   prefix: 'data/',
- *   accountName: 'mystorageaccount',
  * });
- * await connector.connect(); // uses DefaultAzureCredential
+ * await connector.connect({ type: 'connection-string', connectionString: '...' });
  * const files = await connector.files('reports/');
  * const preview = await connector.peek('reports/sales.csv', { rows: 5 });
  * const stream = await connector.read('reports/sales.csv');
  * await connector.disconnect();
  * ```
  */
-export class AzureBlobConnector implements FileConnector<AzureBlobAuth> {
+export class AzureBlobStorageConnector implements FileConnector<AzureBlobStorageAuth> {
   private readonly container: string;
   private readonly prefix?: string;
-  private readonly accountName?: string;
   private blobServiceClient: BlobServiceClient | null = null;
   private containerClient: ContainerClient | null = null;
   private connected = false;
@@ -185,7 +183,7 @@ export class AzureBlobConnector implements FileConnector<AzureBlobAuth> {
   /** Active stream abort controllers for resource cleanup. */
   private activeStreams = new Set<AbortController>();
 
-  constructor(options: AzureBlobOptions) {
+  constructor(options: AzureBlobStorageOptions) {
     if (!options.container || options.container.trim() === '') {
       throw new ConnectionError('container is required', {
         code: 'VENOMOUS_INVALID_OPTIONS',
@@ -195,7 +193,6 @@ export class AzureBlobConnector implements FileConnector<AzureBlobAuth> {
 
     this.container = options.container;
     this.prefix = options.prefix;
-    this.accountName = options.accountName;
   }
 
   /**
@@ -234,8 +231,8 @@ export class AzureBlobConnector implements FileConnector<AzureBlobAuth> {
     this.activeStreams.delete(controller);
   }
 
-  async connect(auth?: AzureBlobAuth): Promise<void> {
-    const { client } = await resolveAuth(auth, this.accountName);
+  async connect(auth?: AzureBlobStorageAuth): Promise<void> {
+    const { client } = await resolveAuth(auth);
 
     this.blobServiceClient = client;
     this.containerClient = client.getContainerClient(this.container);

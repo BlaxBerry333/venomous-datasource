@@ -1,17 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { createAzureBlobConnector } from './index.js';
+import { createAzureBlobStorageConnector } from './index.js';
 
 /**
- * Integration tests for AzureBlobConnector.
+ * Integration tests for AzureBlobStorageConnector.
  *
  * These tests require real Azure credentials and a Blob Storage container.
  * They are skipped by default and intended for local development verification.
  *
  * To run:
- * 1. Set AZURE_STORAGE_CONNECTION_STRING env var (or use az login for DefaultAzureCredential)
+ * 1. Set AZURE_STORAGE_CONNECTION_STRING env var
  * 2. Set AZURE_TEST_CONTAINER env var
- * 3. Set AZURE_TEST_ACCOUNT_NAME env var (for auto auth mode)
- * 4. Remove .skip from the describe block
+ * 3. Remove .skip from the describe block
  *
  * CJK path end-to-end verification:
  * - Write a file with CJK filename (no percent-encoding on Azure Blob)
@@ -19,20 +18,16 @@ import { createAzureBlobConnector } from './index.js';
  * - Read the file back
  * - Delete the file
  */
-describe.skip('AzureBlobConnector integration', () => {
+describe.skip('AzureBlobStorageConnector integration', () => {
   const container = process.env['AZURE_TEST_CONTAINER'] ?? 'test-container';
-  const accountName = process.env['AZURE_TEST_ACCOUNT_NAME'];
-  const connectionString = process.env['AZURE_STORAGE_CONNECTION_STRING'];
+  const connectionString = process.env['AZURE_STORAGE_CONNECTION_STRING'] ?? '';
 
-  const connector = createAzureBlobConnector({
+  const connector = createAzureBlobStorageConnector({
     container,
     prefix: 'venomous-test',
-    accountName,
   });
 
-  const auth = connectionString
-    ? { type: 'connection-string' as const, connectionString }
-    : undefined;
+  const auth = { type: 'connection-string' as const, connectionString };
 
   it('connects with credentials', async () => {
     await connector.connect(auth);

@@ -49,11 +49,9 @@ export type AWSS3Auth = {
 /**
  * Azure Blob Storage authentication options (discriminated union).
  */
-export type AzureBlobAuth =
-  | { readonly type: 'auto' }
+export type AzureBlobStorageAuth =
   | { readonly type: 'connection-string'; readonly connectionString: string }
-  | { readonly type: 'sas-token'; readonly accountName: string; readonly sasToken: string }
-  | { readonly type: 'account-key'; readonly accountName: string; readonly accountKey: string };
+  | { readonly type: 'sas-token'; readonly accountName: string; readonly sasToken: string };
 
 /**
  * MongoDB authentication options (discriminated union).
@@ -85,7 +83,7 @@ export type TabularAuth = BigQueryAuth | SheetsAuth;
 /**
  * Union of all file data source auth types.
  */
-export type FileAuth = AWSS3Auth | GCSAuth | AzureBlobAuth;
+export type FileAuth = AWSS3Auth | GCSAuth | AzureBlobStorageAuth;
 
 /**
  * Union of all document data source auth types.

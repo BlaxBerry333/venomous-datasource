@@ -10,7 +10,7 @@ export type {
   SheetsAuth,
   FirestoreAuth,
   AWSS3Auth,
-  AzureBlobAuth,
+  AzureBlobStorageAuth,
   MongoDBAuth,
   TabularAuth,
   FileAuth,

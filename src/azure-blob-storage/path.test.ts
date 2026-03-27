@@ -33,7 +33,7 @@ describe('toBlobPath', () => {
     });
   });
 
-  describe('CJK characters (NOT encoded, like GCS)', () => {
+  describe('CJK characters (NOT encoded, like Google Cloud Storage)', () => {
     it('preserves Japanese characters as-is', () => {
       const result = toBlobPath('reports/月次レポート.csv');
       expect(result).toBe('reports/月次レポート.csv');

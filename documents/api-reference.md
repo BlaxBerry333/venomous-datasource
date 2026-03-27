@@ -108,7 +108,7 @@ Interface for file-based data source connectors (e.g., S3, GCS).
 
 ### Authentication
 
-Most connectors support `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery and AWS S3 require explicit authentication.
+Most connectors support `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery, AWS S3, and Azure Blob Storage require explicit authentication.
 
 ```typescript
 // ── Google Cloud ──
@@ -132,13 +132,11 @@ type FirestoreAuth =
 
 type AWSS3Auth = { type?: 'access-key'; accessKeyId: string; secretAccessKey: string; region: string };
 
-// ── Azure ──
+// ── Azure (explicit auth required) ──
 
-type AzureBlobAuth =
-  | { type: 'auto' }
+type AzureBlobStorageAuth =
   | { type: 'connection-string'; connectionString: string }
-  | { type: 'sas-token'; accountName: string; sasToken: string }
-  | { type: 'account-key'; accountName: string; accountKey: string };
+  | { type: 'sas-token'; accountName: string; sasToken: string };
 
 // ── MongoDB ──
 

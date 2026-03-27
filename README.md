@@ -16,7 +16,7 @@ One consistent API for **tabular**, **document**, and **file-based** data source
 | Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |
 | Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |
 | Amazon S3            | File     | `venomous-datasource/aws-s3`             | `@aws-sdk/client-s3`                                        |
-| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob` + `@azure/identity`                   |
+| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob`                                       |
 | MongoDB              | Document | `venomous-datasource/mongodb`            | `mongodb`                                                   |
 
 ## Installation
@@ -33,7 +33,7 @@ npm install googleapis                                              # Google She
 npm install @google-cloud/storage                                   # GCS
 npm install firebase-admin                                          # Firestore
 npm install @aws-sdk/client-s3                                       # S3
-npm install @azure/storage-blob @azure/identity                     # Azure Blob
+npm install @azure/storage-blob                                      # Azure Blob
 npm install mongodb                                                 # MongoDB
 ```
 
@@ -177,7 +177,7 @@ await connector.disconnect();
 </details>
 
 <details>
-<summary>Amazon S3</summary>
+<summary>AWS S3</summary>
 <br>
 
 ```typescript
@@ -210,19 +210,29 @@ await connector.disconnect();
 <br>
 
 ```typescript
-import { createAzureBlobConnector } from 'venomous-datasource/azure-blob-storage';
+import { createAzureBlobStorageConnector } from 'venomous-datasource/azure-blob-storage';
 
-const connector = createAzureBlobConnector({
+const connector = createAzureBlobStorageConnector({
   container: 'my-container',
   prefix: 'data/',
-  accountName: 'mystorageaccount',
 });
 
-await connector.connect(); // Uses DefaultAzureCredential
+// Option 1: Connection string
+await connector.connect({
+  type: 'connection-string',
+  connectionString: '...',
+});
+
+// Option 2: SAS token
+// await connector.connect({
+//   type: 'sas-token',
+//   accountName: '...',
+//   sasToken: '...',
+// });
 
 const files = await connector.files('reports/');
-const preview = await connector.peek('data/report.csv', { rows: 10 });
-const stream = await connector.read('data/report.csv');
+const preview = await connector.peek(files.data[0].path, { rows: 10 });
+const stream = await connector.read(files.data[0].path);
 
 await connector.disconnect();
 ```

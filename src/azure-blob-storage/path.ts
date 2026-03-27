@@ -5,7 +5,7 @@ import { normalizePath } from '../core/index.js';
  *
  * Azure Blob Storage natively supports UTF-8 blob names, so NO percent-encoding
  * is applied. Only NFC normalization (via `normalizePath`) is performed.
- * Logic is identical to GCS path handling.
+ * Logic is identical to Google Cloud Storage path handling.
  *
  * @param userPath - User-provided relative path.
  * @param prefix - Optional container prefix (e.g., "data/uploads").

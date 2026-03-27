@@ -38,11 +38,11 @@ src/
 │   ├── auth.ts          # Auth resolution (async, dynamic import for firebase-admin)
 │   └── types.ts         # FirestoreOptions
 └── azure-blob-storage/  # Azure Blob connector (venomous-datasource/azure-blob-storage)
-    ├── index.ts         # Subpath entry — exports createAzureBlobConnector
+    ├── index.ts         # Subpath entry — exports createAzureBlobStorageConnector
     ├── connector.ts     # FileConnector implementation
-    ├── auth.ts          # Auth resolution (async, dynamic import for @azure/identity)
+    ├── auth.ts          # Auth resolution (connection-string, sas-token)
     ├── path.ts          # Azure Blob path utilities
-    └── types.ts         # AzureBlobOptions
+    └── types.ts         # AzureBlobStorageOptions
 ```
 
 Each connector is a subpath export (`venomous-datasource/bigquery`, etc.) with its own peer dependency, so users only install what they use.

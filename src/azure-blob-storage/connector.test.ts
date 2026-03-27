@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AzureBlobConnector } from './connector.js';
+import { AzureBlobStorageConnector } from './connector.js';
 import {
   ConnectionError,
   QueryError,
@@ -61,12 +61,12 @@ function createMockDownloadResponse(content: string) {
   };
 }
 
-describe('AzureBlobConnector', () => {
-  let connector: AzureBlobConnector;
+describe('AzureBlobStorageConnector', () => {
+  let connector: AzureBlobStorageConnector;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    connector = new AzureBlobConnector({ container: 'test-container' });
+    connector = new AzureBlobStorageConnector({ container: 'test-container' });
   });
 
   afterEach(async () => {
@@ -79,32 +79,39 @@ describe('AzureBlobConnector', () => {
 
   describe('constructor', () => {
     it('throws ConnectionError when container is empty', () => {
-      expect(() => new AzureBlobConnector({ container: '' })).toThrow(ConnectionError);
+      expect(() => new AzureBlobStorageConnector({ container: '' })).toThrow(ConnectionError);
     });
 
     it('throws ConnectionError when container is whitespace', () => {
-      expect(() => new AzureBlobConnector({ container: '  ' })).toThrow(ConnectionError);
+      expect(() => new AzureBlobStorageConnector({ container: '  ' })).toThrow(ConnectionError);
     });
 
     it('accepts valid options', () => {
-      const c = new AzureBlobConnector({
+      const c = new AzureBlobStorageConnector({
         container: 'my-container',
         prefix: 'data/',
         accountName: 'myaccount',
       });
-      expect(c).toBeInstanceOf(AzureBlobConnector);
+      expect(c).toBeInstanceOf(AzureBlobStorageConnector);
     });
   });
 
   describe('connect', () => {
-    it('connects successfully with default auth', async () => {
+    it('connects successfully with connection-string auth', async () => {
       mockContainerGetProperties.mockResolvedValue({});
-      await connector.connect();
+      await connector.connect({ type: 'connection-string', connectionString: 'test-conn-str' });
     });
 
-    it('connects with explicit auto auth', async () => {
-      mockContainerGetProperties.mockResolvedValue({});
-      await connector.connect({ type: 'auto' });
+    it('delegates auth validation to resolveAuth (undefined throws via mock)', async () => {
+      const { resolveAuth } = await import('./auth.js');
+      const mockResolveAuth = vi.mocked(resolveAuth);
+      mockResolveAuth.mockRejectedValueOnce(
+        new AuthenticationError('Authentication is required.', {
+          code: 'VENOMOUS_AUTH_REQUIRED',
+          connector: 'azure-blob-storage',
+        })
+      );
+      await expect(connector.connect()).rejects.toThrow(AuthenticationError);
     });
 
     it('throws NotFoundError when container does not exist', async () => {
@@ -306,7 +313,7 @@ describe('AzureBlobConnector', () => {
     });
 
     it('lists with prefix', async () => {
-      const c = new AzureBlobConnector({ container: 'test-container', prefix: 'data' });
+      const c = new AzureBlobStorageConnector({ container: 'test-container', prefix: 'data' });
       mockContainerGetProperties.mockResolvedValue({});
       await c.connect();
 
