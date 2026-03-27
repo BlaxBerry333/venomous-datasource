@@ -5,7 +5,7 @@
 
 Unified multi-datasource connection SDK for Node.js
 
-One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Firestore, MongoDB), and **file-based** (S3, GCS, Azure Blob) data sources. Zero-config auth, streaming-first (`AsyncIterable` / `ReadableStream`), path-traversal prevention, parameterized queries, credential redaction, CJK/Unicode path support, strict TypeScript types, and subpath exports — only install the SDKs you actually use.
+One consistent API for **tabular**, **document**, and **file-based** data sources. Zero-config auth, streaming-first (`AsyncIterable` / `ReadableStream`), path-traversal prevention, parameterized queries, credential redaction, CJK/Unicode path support, strict TypeScript types, and subpath exports — only install the SDKs you actually use.
 
 ## Supported Data Sources
 
@@ -15,7 +15,7 @@ One consistent API for **tabular** (BigQuery, Google Sheets), **document** (Fire
 | Google Cloud Storage | File     | `venomous-datasource/gcs`                | `@google-cloud/storage`                                     |
 | Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |
 | Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |
-| Amazon S3            | File     | `venomous-datasource/s3`                 | `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`      |
+| Amazon S3            | File     | `venomous-datasource/aws-s3`             | `@aws-sdk/client-s3`                                        |
 | Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob` + `@azure/identity`                   |
 | MongoDB              | Document | `venomous-datasource/mongodb`            | `mongodb`                                                   |
 
@@ -32,7 +32,7 @@ npm install @google-cloud/bigquery @google-cloud/resource-manager   # BigQuery
 npm install googleapis                                              # Google Sheets
 npm install @google-cloud/storage                                   # GCS
 npm install firebase-admin                                          # Firestore
-npm install @aws-sdk/client-s3 @aws-sdk/credential-providers        # S3
+npm install @aws-sdk/client-s3                                       # S3
 npm install @azure/storage-blob @azure/identity                     # Azure Blob
 npm install mongodb                                                 # MongoDB
 ```
@@ -82,10 +82,8 @@ const connector = createGCSConnector({
   projectId: 'your-project',
 });
 
-// Uses Application Default Credentials by default
 await connector.connect();
 
-// List files in a directory
 const files = await connector.files('reports/');
 
 // Preview first 10 rows of a CSV/JSON file
@@ -183,24 +181,23 @@ await connector.disconnect();
 <br>
 
 ```typescript
-import { createS3Connector } from 'venomous-datasource/s3';
+import { createAWSS3Connector } from 'venomous-datasource/aws-s3';
 
-const connector = createS3Connector({
+const connector = createAWSS3Connector({
   bucket: 'your-bucket',
   prefix: 'data/',
+});
+
+await connector.connect({
+  accessKeyId: 'AKIA_YOUR_KEY',
+  secretAccessKey: 'your-secret',
   region: 'ap-northeast-1',
 });
 
-// Uses default AWS credential chain (env vars, IAM role, etc.)
-await connector.connect();
-
-// List files with pagination
 const files = await connector.files('reports/', { page: { size: 20 } });
 
-// Read file as a ReadableStream
 const stream = await connector.read('reports/summary.csv');
 
-// Get file metadata (size, lastModified, contentType)
 const info = await connector.stat('reports/summary.csv');
 
 await connector.disconnect();

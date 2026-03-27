@@ -43,7 +43,7 @@ describe('VenomousError', () => {
     const cause = new Error('secret key is invalid');
     const error = new VenomousError('auth failed', {
       code: 'VENOMOUS_AUTH_FAILED',
-      connector: 's3',
+      connector: 'aws-s3',
       cause,
     });
     const json = error.toJSON();
@@ -51,7 +51,7 @@ describe('VenomousError', () => {
       name: 'VenomousError',
       code: 'VENOMOUS_AUTH_FAILED',
       message: 'auth failed',
-      connector: 's3',
+      connector: 'aws-s3',
       cause: { name: 'Error', message: 'secret key is invalid' },
     });
   });

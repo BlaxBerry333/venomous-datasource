@@ -12,8 +12,8 @@ import type { FileInfo, PeekResult, WriteResult } from '../types/result.js';
  *
  * @example
  * ```typescript
- * const connector: FileConnector<S3Auth> = createS3Connector({ bucket: 'my-bucket' });
- * await connector.connect({ type: 'auto' });
+ * const connector: FileConnector<AWSS3Auth> = createAWSS3Connector({ bucket: 'my-bucket' });
+ * await connector.connect({ accessKeyId: '...', secretAccessKey: '...', region: 'us-east-1' });
  * const fileList = await connector.files('data/', { page: { size: 20 } });
  * const stream = await connector.read('data/report.csv');
  * await connector.disconnect();
@@ -22,7 +22,9 @@ import type { FileInfo, PeekResult, WriteResult } from '../types/result.js';
 export interface FileConnector<TAuth extends FileAuth = FileAuth> {
   /**
    * Connect to the storage service and initialize the client.
-   * If no auth is provided, defaults to `{ type: 'auto' }`.
+   * If no auth is provided, defaults to `{ type: 'auto' }` for most connectors.
+   * Some connectors (e.g., AWS S3) require explicit auth and will throw
+   * `AuthenticationError` if auth is not provided.
    *
    * @param auth - Authentication configuration.
    * @throws {AuthenticationError} When credentials are invalid.

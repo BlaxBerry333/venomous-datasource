@@ -10,7 +10,7 @@ import {
 import type { S3ClientConfig } from '@aws-sdk/client-s3';
 import type {
   FileConnector,
-  S3Auth,
+  AWSS3Auth,
   FileInfo,
   PeekResult,
   WriteResult,
@@ -32,10 +32,10 @@ import {
 import { resolveAuth } from './auth.js';
 import { toS3Key, fromS3Key, toS3Prefix } from './path.js';
 import { parseCsv, parseJson, getFileFormat } from '../core/index.js';
-import type { S3Options } from './types.js';
+import type { AWSS3Options } from './types.js';
 import { Readable } from 'node:stream';
 
-const CONNECTOR_NAME = 's3';
+const CONNECTOR_NAME = 'aws-s3';
 const DEFAULT_PEEK_ROWS = 10;
 const MAX_PEEK_ROWS = 1000;
 const PEEK_MAX_BYTES = 50 * 1024 * 1024; // 50MB
@@ -66,7 +66,7 @@ function wrapError(err: unknown, defaultMessage: string): never {
       errName === 'InvalidToken' ||
       errName === 'CredentialsProviderError'
     ) {
-      throw new AuthenticationError(`S3 authentication failed: ${message}`, {
+      throw new AuthenticationError(`AWS S3 authentication failed: ${message}`, {
         cause: err,
         connector: CONNECTOR_NAME,
       });
@@ -76,7 +76,7 @@ function wrapError(err: unknown, defaultMessage: string): never {
     const statusCode = (err as { $metadata?: { httpStatusCode?: number } }).$metadata
       ?.httpStatusCode;
     if (statusCode === 401) {
-      throw new AuthenticationError(`S3 authentication failed: ${message}`, {
+      throw new AuthenticationError(`AWS S3 authentication failed: ${message}`, {
         cause: err,
         connector: CONNECTOR_NAME,
       });
@@ -96,14 +96,14 @@ function wrapError(err: unknown, defaultMessage: string): never {
       message.includes('NetworkingError') ||
       errName === 'NetworkingError'
     ) {
-      throw new ConnectionError(`S3 connection failed: ${message}`, {
+      throw new ConnectionError(`AWS S3 connection failed: ${message}`, {
         cause: err,
         connector: CONNECTOR_NAME,
       });
     }
 
     // Default to QueryError
-    throw new QueryError(`S3 operation failed: ${message}`, {
+    throw new QueryError(`AWS S3 operation failed: ${message}`, {
       cause: err,
       connector: CONNECTOR_NAME,
     });
@@ -113,31 +113,36 @@ function wrapError(err: unknown, defaultMessage: string): never {
 }
 
 /**
- * S3Connector implements FileConnector for Amazon S3.
+ * AWSS3Connector implements FileConnector for Amazon S3.
+ *
+ * You must provide `{ accessKeyId, secretAccessKey, region }` to `connect()`.
  *
  * @example
  * ```typescript
- * import { createS3Connector } from 'venomous-datasource/s3';
+ * import { createAWSS3Connector } from 'venomous-datasource/aws-s3';
  *
- * const connector = createS3Connector({ bucket: 'my-bucket', prefix: 'data/' });
- * await connector.connect(); // uses default credential chain
+ * const connector = createAWSS3Connector({ bucket: 'my-bucket', prefix: 'data/' });
+ * await connector.connect({
+ *   accessKeyId: 'AKIA...',
+ *   secretAccessKey: '...',
+ *   region: 'ap-northeast-1',
+ * });
  * const files = await connector.files('reports/');
  * const preview = await connector.peek('reports/sales.csv', { rows: 5 });
  * const stream = await connector.read('reports/sales.csv');
  * await connector.disconnect();
  * ```
  */
-export class S3Connector implements FileConnector<S3Auth> {
+export class AWSS3Connector implements FileConnector<AWSS3Auth> {
   private readonly bucket: string;
   private readonly prefix?: string;
-  private readonly defaultRegion?: string;
   private client: S3Client | null = null;
   private connected = false;
 
   /** Active stream abort controllers for resource cleanup. */
   private activeStreams = new Set<AbortController>();
 
-  constructor(options: S3Options) {
+  constructor(options: AWSS3Options) {
     if (!options.bucket || options.bucket.trim() === '') {
       throw new ConnectionError('bucket is required', {
         code: 'VENOMOUS_INVALID_OPTIONS',
@@ -147,7 +152,6 @@ export class S3Connector implements FileConnector<S3Auth> {
 
     this.bucket = options.bucket;
     this.prefix = options.prefix;
-    this.defaultRegion = options.region;
   }
 
   /**
@@ -186,9 +190,16 @@ export class S3Connector implements FileConnector<S3Auth> {
     this.activeStreams.delete(controller);
   }
 
-  async connect(auth?: S3Auth): Promise<void> {
+  async connect(auth?: AWSS3Auth): Promise<void> {
+    if (!auth) {
+      throw new AuthenticationError(
+        'AWS S3 requires explicit authentication. Provide { type: "access-key", accessKeyId, secretAccessKey, region }.',
+        { code: 'VENOMOUS_AUTH_REQUIRED', connector: CONNECTOR_NAME }
+      );
+    }
+
     const sdkConfig: S3ClientConfig = {
-      ...resolveAuth(auth, this.defaultRegion),
+      ...resolveAuth(auth),
     };
 
     this.client = new S3Client(sdkConfig);
@@ -199,7 +210,7 @@ export class S3Connector implements FileConnector<S3Auth> {
     } catch (err) {
       this.client.destroy();
       this.client = null;
-      wrapError(err, `Failed to connect to S3 bucket "${this.bucket}"`);
+      wrapError(err, `Failed to connect to AWS S3 bucket "${this.bucket}"`);
     }
 
     this.connected = true;

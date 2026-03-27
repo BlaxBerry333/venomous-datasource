@@ -20,7 +20,7 @@ Detailed usage for each supported data source.
 
 ### Authentication
 
-BigQuery requires explicit authentication — `auto` (ADC) is not supported. The `type` field is optional (defaults to `'credentials'`):
+The `type` field is optional (defaults to `'credentials'`):
 
 | Type                       | Fields        | Description                               |
 | -------------------------- | ------------- | ----------------------------------------- |
@@ -424,8 +424,8 @@ await connector.remove('users', {
 ## Amazon S3
 
 **Type:** File (`FileConnector`)
-**Import:** `venomous-datasource/s3`
-**Peer dependencies:** `@aws-sdk/client-s3` + `@aws-sdk/credential-providers`
+**Import:** `venomous-datasource/aws-s3`
+**Peer dependencies:** `@aws-sdk/client-s3`
 
 ### Options
 
@@ -437,33 +437,28 @@ await connector.remove('users', {
 
 ### Authentication
 
-| Type             | Fields                                     | Description                                             |
-| ---------------- | ------------------------------------------ | ------------------------------------------------------- |
-| `auto` (default) | —                                          | Default AWS credential chain (env vars, IAM role, etc.) |
-| `access-key`     | `accessKeyId`, `secretAccessKey`, `region` | Static access key                                       |
-| `profile`        | `profileName`, `region?`                   | Named AWS profile from `~/.aws/credentials`             |
+The `type` field can be omitted (defaults to `'access-key'`).
+
+| Type         | Fields                                     | Description      |
+| ------------ | ------------------------------------------ | ---------------- |
+| `access-key` | `accessKeyId`, `secretAccessKey`, `region` | Static access key (required) |
 
 ### Usage
 
 ```typescript
-import { createS3Connector } from 'venomous-datasource/s3';
+import { createAWSS3Connector } from 'venomous-datasource/aws-s3';
 
-const connector = createS3Connector({
+const connector = createAWSS3Connector({
   bucket: 'my-bucket',
   prefix: 'data/',
-  region: 'ap-northeast-1',
 });
 
-// Auto auth (default)
-await connector.connect();
-
-// Or with explicit credentials
-// await connector.connect({
-//   type: 'access-key',
-//   accessKeyId: 'AKIA_YOUR_KEY',
-//   secretAccessKey: 'your-secret',
-//   region: 'us-east-1',
-// });
+// Explicit credentials required
+await connector.connect({
+  accessKeyId: 'AKIA_YOUR_KEY',
+  secretAccessKey: 'your-secret',
+  region: 'ap-northeast-1',
+});
 ```
 
 #### List files

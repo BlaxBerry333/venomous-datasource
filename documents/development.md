@@ -15,12 +15,12 @@ src/
 │   ├── connector.ts     # TabularConnector implementation
 │   ├── auth.ts          # Auth resolution + resolveProjectId
 │   └── types.ts         # BigQueryOptions, ProjectInfo, DatasetInfo
-├── s3/                  # S3 connector (venomous-datasource/s3)
-│   ├── index.ts         # Subpath entry — exports createS3Connector
+├── aws-s3/              # AWS S3 connector (venomous-datasource/aws-s3)
+│   ├── index.ts         # Subpath entry — exports createAWSS3Connector
 │   ├── connector.ts     # FileConnector implementation
 │   ├── auth.ts          # Auth resolution
 │   ├── path.ts          # S3 path utilities
-│   └── types.ts         # S3Options
+│   └── types.ts         # AWSS3Options
 ├── gcs/                 # GCS connector (venomous-datasource/gcs)
 │   ├── index.ts         # Subpath entry — exports createGCSConnector
 │   ├── connector.ts     # FileConnector implementation

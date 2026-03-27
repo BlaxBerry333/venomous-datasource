@@ -13,7 +13,7 @@ The `venomous-datasource/core` module exports everything you need: interfaces, t
 A well-behaved connector must:
 
 1. **Implement `TabularConnector`, `FileConnector`, or `DocumentConnector`** from `venomous-datasource/core`
-2. **Support `{ type: 'auto' }` authentication** — delegate to the native SDK's credential chain (exception: BigQuery requires explicit auth — see [Connector Guide](connectors.md#bigquery))
+2. **Support `{ type: 'auto' }` authentication** — delegate to the native SDK's credential chain (exception: BigQuery and AWS S3 require explicit auth — see [Connector Guide](connectors.md#bigquery))
 3. **Wrap native SDK errors as `VenomousError` subclasses** — don't leak raw SDK errors
 4. **Redact credentials** in logs and error output (use the provided `redactAuth()` utility)
 5. **For file connectors:** validate paths with `normalizePath()` / `isPathSafe()` to prevent traversal attacks
@@ -36,7 +36,7 @@ import {
   QueryError,
 } from 'venomous-datasource/core';
 
-// 1. Define your auth type (include 'auto' unless your data source requires explicit auth, like BigQuery)
+// 1. Define your auth type (include 'auto' unless your data source requires explicit auth, like BigQuery or AWS S3)
 type MyAuth = { type: 'auto' } | { type: 'password'; host: string; user: string; password: string };
 
 // 2. Define your connector options
@@ -53,7 +53,7 @@ class MyConnector implements TabularConnector<MyAuth> {
 
   async connect(auth?: MyAuth): Promise<void> {
     // Default to 'auto' if supported. If your connector requires explicit auth
-    // (like BigQuery), throw AuthenticationError when auth is undefined.
+    // (like BigQuery or AWS S3), throw AuthenticationError when auth is undefined.
     const resolved = auth ?? { type: 'auto' };
     try {
       this.client = await createNativeClient(this.options, resolved);

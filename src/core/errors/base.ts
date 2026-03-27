@@ -21,7 +21,7 @@ export class VenomousError extends Error {
   /** Machine-readable error code (e.g., `VENOMOUS_AUTH_FAILED`). */
   readonly code: string;
 
-  /** Connector type that produced this error (e.g., `bigquery`, `s3`). */
+  /** Connector type that produced this error (e.g., `bigquery`, `aws-s3`). */
   readonly connector?: string;
 
   constructor(

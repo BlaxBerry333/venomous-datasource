@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { S3Connector } from './connector.js';
+import { AWSS3Connector } from './connector.js';
+import type { AWSS3Auth } from '../core/index.js';
 import {
   ConnectionError,
   QueryError,
@@ -38,11 +39,6 @@ vi.mock('@aws-sdk/client-s3', () => {
   };
 });
 
-// Mock @aws-sdk/credential-providers
-vi.mock('@aws-sdk/credential-providers', () => ({
-  fromIni: vi.fn(() => ({})),
-}));
-
 async function getMocks() {
   const mod = (await import('@aws-sdk/client-s3')) as unknown as {
     _mocks: {
@@ -53,6 +49,14 @@ async function getMocks() {
   };
   return mod._mocks;
 }
+
+/** Mock auth for tests that need a connected connector. */
+const mockAuth: AWSS3Auth = {
+  type: 'access-key',
+  accessKeyId: 'AKIATEST',
+  secretAccessKey: 'secrettest',
+  region: 'us-east-1',
+};
 
 /** Helper: create a mock S3 Body that can transformToString and transformToWebStream. */
 function createMockBody(content: string) {
@@ -71,12 +75,12 @@ function createMockBody(content: string) {
   };
 }
 
-describe('S3Connector', () => {
-  let connector: S3Connector;
+describe('AWSS3Connector', () => {
+  let connector: AWSS3Connector;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    connector = new S3Connector({ bucket: 'test-bucket' });
+    connector = new AWSS3Connector({ bucket: 'test-bucket' });
   });
 
   afterEach(async () => {
@@ -89,33 +93,36 @@ describe('S3Connector', () => {
 
   describe('constructor', () => {
     it('throws ConnectionError when bucket is empty', () => {
-      expect(() => new S3Connector({ bucket: '' })).toThrow(ConnectionError);
+      expect(() => new AWSS3Connector({ bucket: '' })).toThrow(ConnectionError);
     });
 
     it('throws ConnectionError when bucket is whitespace', () => {
-      expect(() => new S3Connector({ bucket: '  ' })).toThrow(ConnectionError);
+      expect(() => new AWSS3Connector({ bucket: '  ' })).toThrow(ConnectionError);
     });
 
     it('accepts valid options', () => {
-      const c = new S3Connector({ bucket: 'my-bucket', prefix: 'data/', region: 'us-east-1' });
-      expect(c).toBeInstanceOf(S3Connector);
+      const c = new AWSS3Connector({ bucket: 'my-bucket', prefix: 'data/', region: 'us-east-1' });
+      expect(c).toBeInstanceOf(AWSS3Connector);
     });
   });
 
   describe('connect', () => {
-    it('connects successfully with default auth', async () => {
+    it('connects with access-key auth', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValue({}); // HeadBucket success
 
-      await connector.connect();
+      await connector.connect(mockAuth);
       // Should not throw
     });
 
-    it('connects with explicit auto auth', async () => {
-      const mocks = await getMocks();
-      mocks.mockSend.mockResolvedValue({});
-
-      await connector.connect({ type: 'auto' });
+    it('throws AuthenticationError when auth is not provided', async () => {
+      await expect(connector.connect()).rejects.toThrow(AuthenticationError);
+      await expect(connector.connect()).rejects.toThrow(/AWS S3 requires explicit authentication/);
+      try {
+        await connector.connect();
+      } catch (err) {
+        expect((err as AuthenticationError).code).toBe('VENOMOUS_AUTH_REQUIRED');
+      }
     });
 
     it('wraps NoSuchBucket as NotFoundError', async () => {
@@ -123,7 +130,7 @@ describe('S3Connector', () => {
       const error = Object.assign(new Error('NoSuchBucket'), { name: 'NoSuchBucket' });
       mocks.mockSend.mockRejectedValue(error);
 
-      await expect(connector.connect()).rejects.toThrow(NotFoundError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(NotFoundError);
     });
 
     it('wraps AccessDenied as PermissionError', async () => {
@@ -134,7 +141,7 @@ describe('S3Connector', () => {
       mocks.mockSend.mockRejectedValue(error);
 
       // PermissionError is also a VenomousError
-      await expect(connector.connect()).rejects.toThrow('Access Denied');
+      await expect(connector.connect(mockAuth)).rejects.toThrow('Access Denied');
     });
 
     it('wraps InvalidAccessKeyId as AuthenticationError', async () => {
@@ -144,14 +151,14 @@ describe('S3Connector', () => {
       });
       mocks.mockSend.mockRejectedValue(error);
 
-      await expect(connector.connect()).rejects.toThrow(AuthenticationError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(AuthenticationError);
     });
 
     it('wraps network errors as ConnectionError', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockRejectedValue(new Error('ECONNREFUSED'));
 
-      await expect(connector.connect()).rejects.toThrow(ConnectionError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(ConnectionError);
     });
   });
 
@@ -159,7 +166,7 @@ describe('S3Connector', () => {
     it('resets state and destroys client', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValue({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await connector.disconnect();
 
@@ -170,7 +177,7 @@ describe('S3Connector', () => {
     it('is idempotent (calling disconnect twice does not throw)', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValue({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await connector.disconnect();
       await connector.disconnect(); // second call should not throw
@@ -186,7 +193,7 @@ describe('S3Connector', () => {
       const mocks = await getMocks();
       // connect
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // ListObjectsV2
       mocks.mockSend.mockResolvedValueOnce({
@@ -229,7 +236,7 @@ describe('S3Connector', () => {
     it('handles pagination with cursor', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // First page
       mocks.mockSend.mockResolvedValueOnce({
@@ -256,10 +263,10 @@ describe('S3Connector', () => {
     });
 
     it('lists with prefix', async () => {
-      const c = new S3Connector({ bucket: 'test-bucket', prefix: 'data' });
+      const c = new AWSS3Connector({ bucket: 'test-bucket', prefix: 'data' });
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await c.connect();
+      await c.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({
         Contents: [{ Key: 'data/file.csv', Size: 100, LastModified: new Date() }],
@@ -273,7 +280,7 @@ describe('S3Connector', () => {
     it('handles empty listing', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({
         IsTruncated: false,
@@ -287,7 +294,7 @@ describe('S3Connector', () => {
     it('handles CJK filenames from S3 response', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({
         Contents: [
@@ -315,7 +322,7 @@ describe('S3Connector', () => {
     it('rejects invalid cursor', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.files(undefined, { page: { cursor: 'invalid' } })).rejects.toThrow(
         QueryError
@@ -331,7 +338,7 @@ describe('S3Connector', () => {
     it('peeks CSV file', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // HeadObject (size check)
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 100 });
@@ -355,7 +362,7 @@ describe('S3Connector', () => {
     it('peeks CSV with quoted fields containing commas', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 50 });
       mocks.mockSend.mockResolvedValueOnce({
@@ -373,7 +380,7 @@ describe('S3Connector', () => {
     it('peeks CSV with BOM', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 50 });
       mocks.mockSend.mockResolvedValueOnce({
@@ -387,7 +394,7 @@ describe('S3Connector', () => {
     it('peeks JSON array file', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 100 });
       mocks.mockSend.mockResolvedValueOnce({
@@ -411,7 +418,7 @@ describe('S3Connector', () => {
     it('peeks JSONL file', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 80 });
       mocks.mockSend.mockResolvedValueOnce({
@@ -427,7 +434,7 @@ describe('S3Connector', () => {
     it('rejects unsupported format', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.peek('image.png')).rejects.toThrow(QueryError);
     });
@@ -435,7 +442,7 @@ describe('S3Connector', () => {
     it('rejects file larger than 50MB', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // HeadObject returns size > 50MB
       mocks.mockSend.mockResolvedValueOnce({
@@ -448,7 +455,7 @@ describe('S3Connector', () => {
     it('defaults to 10 rows', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const csvLines = ['id,name'];
       for (let i = 0; i < 20; i++) {
@@ -467,7 +474,7 @@ describe('S3Connector', () => {
     it('clamps rows to max 1000', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 100 });
       mocks.mockSend.mockResolvedValueOnce({
@@ -482,7 +489,7 @@ describe('S3Connector', () => {
     it('handles empty CSV file', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ ContentLength: 0 });
       mocks.mockSend.mockResolvedValueOnce({
@@ -502,7 +509,7 @@ describe('S3Connector', () => {
     it('returns a ReadableStream', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({
         Body: createMockBody('hello world'),
@@ -520,7 +527,7 @@ describe('S3Connector', () => {
     it('throws NotFoundError for empty body', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({ Body: null });
 
@@ -530,7 +537,7 @@ describe('S3Connector', () => {
     it('enforces stream limit', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Create streams that never close (hang forever) to keep them tracked
       const createHangingBody = () => ({
@@ -565,7 +572,7 @@ describe('S3Connector', () => {
     it('returns file info', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const lastMod = new Date('2024-06-15T10:30:00Z');
       mocks.mockSend.mockResolvedValueOnce({
@@ -589,7 +596,7 @@ describe('S3Connector', () => {
     it('wraps not found error', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Not Found'), { name: 'NotFound' });
       mocks.mockSend.mockRejectedValueOnce(error);
@@ -606,7 +613,7 @@ describe('S3Connector', () => {
     it('writes string data (calculates size locally, no HeadObject)', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({}); // PutObject only
 
@@ -621,7 +628,7 @@ describe('S3Connector', () => {
     it('writes Buffer data (calculates size locally, no HeadObject)', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({}); // PutObject only
 
@@ -640,7 +647,7 @@ describe('S3Connector', () => {
     it('deletes a file', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({}); // connect
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mocks.mockSend.mockResolvedValueOnce({}); // DeleteObject
 
@@ -651,7 +658,7 @@ describe('S3Connector', () => {
     it('is idempotent (no error for non-existent file)', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // S3 DeleteObject does not error on non-existent keys
       mocks.mockSend.mockResolvedValueOnce({});
@@ -664,7 +671,7 @@ describe('S3Connector', () => {
     it('wraps 403 status as PermissionError', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Forbidden'), {
         name: 'SomeError',
@@ -678,7 +685,7 @@ describe('S3Connector', () => {
     it('wraps 404 status as NotFoundError', async () => {
       const mocks = await getMocks();
       mocks.mockSend.mockResolvedValueOnce({});
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Not Found'), {
         name: 'SomeError',

@@ -1,7 +1,6 @@
 /**
  * BigQuery authentication options.
  *
- * BigQuery requires explicit authentication — `auto` (ADC) is not supported.
  * The `type` field can be omitted (defaults to `'credentials'`).
  */
 export type BigQueryAuth = {
@@ -36,17 +35,16 @@ export type FirestoreAuth =
   | { readonly type?: 'credentials'; readonly credentials: object };
 
 /**
- * S3 authentication options (discriminated union).
+ * AWS S3 authentication options.
+ *
+ * The `type` field can be omitted (defaults to `'access-key'`).
  */
-export type S3Auth =
-  | { readonly type: 'auto' }
-  | {
-      readonly type: 'access-key';
-      readonly accessKeyId: string;
-      readonly secretAccessKey: string;
-      readonly region: string;
-    }
-  | { readonly type: 'profile'; readonly profileName: string; readonly region?: string };
+export type AWSS3Auth = {
+  readonly type?: 'access-key';
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+  readonly region: string;
+};
 
 /**
  * Azure Blob Storage authentication options (discriminated union).
@@ -87,7 +85,7 @@ export type TabularAuth = BigQueryAuth | SheetsAuth;
 /**
  * Union of all file data source auth types.
  */
-export type FileAuth = S3Auth | GCSAuth | AzureBlobAuth;
+export type FileAuth = AWSS3Auth | GCSAuth | AzureBlobAuth;
 
 /**
  * Union of all document data source auth types.

@@ -9,7 +9,7 @@ export type {
   GCSAuth,
   SheetsAuth,
   FirestoreAuth,
-  S3Auth,
+  AWSS3Auth,
   AzureBlobAuth,
   MongoDBAuth,
   TabularAuth,

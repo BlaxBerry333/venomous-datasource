@@ -21,8 +21,8 @@ const config: UserConfig[] = [
   },
   {
     ...shared,
-    entry: ['src/s3/index.ts'],
-    outDir: 'dist/s3',
+    entry: ['src/aws-s3/index.ts'],
+    outDir: 'dist/aws-s3',
   },
   {
     ...shared,

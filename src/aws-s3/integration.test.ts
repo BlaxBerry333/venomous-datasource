@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createS3Connector } from './index.js';
+import { createAWSS3Connector } from './index.js';
 
 /**
- * Integration tests for S3Connector.
+ * Integration tests for AWSS3Connector.
  *
  * These tests require real AWS credentials and an S3 bucket.
  * They are skipped by default and intended for local development verification.
@@ -18,23 +18,30 @@ import { createS3Connector } from './index.js';
  * - Read the file back
  * - Delete the file
  */
-describe.skip('S3Connector integration', () => {
+describe.skip('AWSS3Connector integration', () => {
   const bucket = process.env['S3_TEST_BUCKET'] ?? 'test-bucket';
   const region = process.env['AWS_REGION'] ?? 'us-east-1';
 
-  const connector = createS3Connector({
+  const connector = createAWSS3Connector({
     bucket,
     prefix: 'venomous-test',
     region,
   });
 
-  it('connects with default credentials', async () => {
-    await connector.connect({ type: 'auto' });
+  const integrationAuth = {
+    type: 'access-key' as const,
+    accessKeyId: process.env['AWS_ACCESS_KEY_ID']!,
+    secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY']!,
+    region,
+  };
+
+  it('connects with access-key credentials', async () => {
+    await connector.connect(integrationAuth);
     await connector.disconnect();
   });
 
   it('writes and reads a file', async () => {
-    await connector.connect();
+    await connector.connect(integrationAuth);
 
     await connector.write!('test-file.txt', 'Hello, S3!');
     const stat = await connector.stat('test-file.txt');
@@ -50,7 +57,7 @@ describe.skip('S3Connector integration', () => {
   });
 
   it('lists files with pagination', async () => {
-    await connector.connect();
+    await connector.connect(integrationAuth);
 
     const result = await connector.files(undefined, { page: { size: 10 } });
     expect(result.data).toBeDefined();
@@ -60,7 +67,7 @@ describe.skip('S3Connector integration', () => {
   });
 
   it('handles CJK filenames end-to-end', async () => {
-    await connector.connect();
+    await connector.connect(integrationAuth);
 
     // Write file with Japanese name
     const jpName = '日本語テスト.csv';
@@ -86,7 +93,7 @@ describe.skip('S3Connector integration', () => {
   });
 
   it('handles Chinese filenames end-to-end', async () => {
-    await connector.connect();
+    await connector.connect(integrationAuth);
 
     const cnName = '数据文件.json';
     await connector.write!(cnName, JSON.stringify([{ key: '中文' }]));
