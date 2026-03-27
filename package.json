@@ -50,8 +50,21 @@
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
     "check:type": "tsc --noEmit",
-    "check": "npm run format:check && npm run lint && npm run check:type",
+    "check:cspell": "cspell --cache --cache-location=./.cache/.cspellcache --no-progress --show-suggestions '**/*.{ts,js,json,md}'",
+    "check": "npm run format:check && npm run lint && npm run check:type && npm run check:cspell",
     "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts}": [
+      "eslint",
+      "prettier --check"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --check"
+    ],
+    "*.{ts,js,json,md}": [
+      "cspell --no-progress"
+    ]
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.700.0",
@@ -99,10 +112,12 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "cspell": "^9.7.0",
     "eslint": "^9.0.0",
     "firebase-admin": "^13.0.0",
     "googleapis": "^171.4.0",
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "mongodb": "^6.0.0",
     "prettier": "^3.0.0",
     "tsdown": "^0.9.0",
