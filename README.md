@@ -12,7 +12,7 @@ One consistent API for **tabular**, **document**, and **file-based** data source
 | Data Source          | Type     | Import Path                              | Required Peer Dependency                                    |
 | -------------------- | -------- | ---------------------------------------- | ----------------------------------------------------------- |
 | BigQuery             | Tabular  | `venomous-datasource/bigquery`           | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |
-| Google Cloud Storage | File     | `venomous-datasource/gcs`                | `@google-cloud/storage`                                     |
+| Google Cloud Storage | File     | `venomous-datasource/google-cloud-storage` | `@google-cloud/storage`                                     |
 | Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |
 | Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |
 | Amazon S3            | File     | `venomous-datasource/aws-s3`             | `@aws-sdk/client-s3`                                        |
@@ -30,7 +30,7 @@ npm install github:BlaxBerry333/venomous-datasource#release
 # Then install peer dependencies for the data sources you need:
 npm install @google-cloud/bigquery @google-cloud/resource-manager   # BigQuery
 npm install googleapis                                              # Google Sheets
-npm install @google-cloud/storage                                   # GCS
+npm install @google-cloud/storage                                   # Google Cloud Storage
 npm install firebase-admin                                          # Firestore
 npm install @aws-sdk/client-s3                                       # S3
 npm install @azure/storage-blob                                      # Azure Blob
@@ -74,15 +74,21 @@ await connector.disconnect();
 <br>
 
 ```typescript
-import { createGCSConnector } from 'venomous-datasource/gcs';
+import { createGoogleCloudStorageConnector } from 'venomous-datasource/google-cloud-storage';
 
-const connector = createGCSConnector({
+const connector = createGoogleCloudStorageConnector({
   bucket: 'your-bucket',
   prefix: 'data/',
   projectId: 'your-project',
 });
 
-await connector.connect();
+await connector.connect({
+  credentials: {
+    project_id: 'your-project-id',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@your-project-id.iam.gserviceaccount.com',
+  },
+});
 
 const files = await connector.files('reports/');
 

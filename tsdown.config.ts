@@ -26,8 +26,8 @@ const config: UserConfig[] = [
   },
   {
     ...shared,
-    entry: ['src/gcs/index.ts'],
-    outDir: 'dist/gcs',
+    entry: ['src/google-cloud-storage/index.ts'],
+    outDir: 'dist/google-cloud-storage',
   },
   {
     ...shared,

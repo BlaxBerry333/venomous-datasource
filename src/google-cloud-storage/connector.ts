@@ -2,7 +2,7 @@ import { Storage } from '@google-cloud/storage';
 import type { Bucket } from '@google-cloud/storage';
 import type {
   FileConnector,
-  GCSAuth,
+  GoogleCloudStorageAuth,
   FileInfo,
   PeekResult,
   WriteResult,
@@ -22,13 +22,17 @@ import {
   decodeCursor,
 } from '../core/index.js';
 import { resolveAuth } from './auth.js';
-import { toGCSPath, fromGCSPath, toGCSPrefix } from './path.js';
+import {
+  toGoogleCloudStoragePath,
+  fromGoogleCloudStoragePath,
+  toGoogleCloudStoragePrefix,
+} from './path.js';
 import { parseCsv, parseJson, getFileFormat } from '../core/index.js';
-import type { GCSOptions } from './types.js';
+import type { GoogleCloudStorageOptions } from './types.js';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
-const CONNECTOR_NAME = 'gcs';
+const CONNECTOR_NAME = 'google-cloud-storage';
 const DEFAULT_PEEK_ROWS = 10;
 const MAX_PEEK_ROWS = 1000;
 const PEEK_MAX_BYTES = 50 * 1024 * 1024; // 50MB
@@ -36,7 +40,7 @@ const MAX_ACTIVE_STREAMS = 10;
 const DEFAULT_PAGE_SIZE = 50;
 
 /**
- * Map GCS SDK errors to appropriate VenomousError subclasses.
+ * Map Google Cloud Storage SDK errors to appropriate VenomousError subclasses.
  *
  * Error mapping:
  * - 401 -> AuthenticationError
@@ -49,12 +53,12 @@ function wrapError(err: unknown, defaultMessage: string): never {
   if (err instanceof Error) {
     const message = err.message || defaultMessage;
 
-    // GCS SDK uses HTTP status codes in error responses.
+    // Google Cloud Storage SDK uses HTTP status codes in error responses.
     // The code may also be a string for gRPC error codes.
     const statusCode = (err as { code?: number | string }).code;
 
     if (statusCode === 401) {
-      throw new AuthenticationError(`GCS authentication failed: ${message}`, {
+      throw new AuthenticationError(`Google Cloud Storage authentication failed: ${message}`, {
         cause: err,
         connector: CONNECTOR_NAME,
       });
@@ -71,7 +75,7 @@ function wrapError(err: unknown, defaultMessage: string): never {
     // String-based gRPC error codes (future-proofing for gRPC transport)
     const codeStr = typeof statusCode === 'string' ? statusCode : '';
     if (codeStr === 'UNAUTHENTICATED') {
-      throw new AuthenticationError(`GCS authentication failed: ${message}`, {
+      throw new AuthenticationError(`Google Cloud Storage authentication failed: ${message}`, {
         cause: err,
         connector: CONNECTOR_NAME,
       });
@@ -90,14 +94,14 @@ function wrapError(err: unknown, defaultMessage: string): never {
       message.includes('ENOTFOUND') ||
       message.includes('NetworkingError')
     ) {
-      throw new ConnectionError(`GCS connection failed: ${message}`, {
+      throw new ConnectionError(`Google Cloud Storage connection failed: ${message}`, {
         cause: err,
         connector: CONNECTOR_NAME,
       });
     }
 
     // Default to QueryError
-    throw new QueryError(`GCS operation failed: ${message}`, {
+    throw new QueryError(`Google Cloud Storage operation failed: ${message}`, {
       cause: err,
       connector: CONNECTOR_NAME,
     });
@@ -107,25 +111,25 @@ function wrapError(err: unknown, defaultMessage: string): never {
 }
 
 /**
- * GCSConnector implements FileConnector for Google Cloud Storage.
+ * GoogleCloudStorageConnector implements FileConnector for Google Cloud Storage.
  *
- * Key difference from S3: GCS natively supports UTF-8 object names,
+ * Key difference from S3: Google Cloud Storage natively supports UTF-8 object names,
  * so NO percent-encoding is applied to CJK/Unicode paths. Only NFC
  * normalization is performed for consistency.
  *
  * @example
  * ```typescript
- * import { createGCSConnector } from 'venomous-datasource/gcs';
+ * import { createGoogleCloudStorageConnector } from 'venomous-datasource/google-cloud-storage';
  *
- * const connector = createGCSConnector({ bucket: 'my-bucket', prefix: 'data/' });
- * await connector.connect(); // uses Application Default Credentials
+ * const connector = createGoogleCloudStorageConnector({ bucket: 'my-bucket', prefix: 'data/' });
+ * await connector.connect({ credentials: serviceAccountJson });
  * const files = await connector.files('reports/');
  * const preview = await connector.peek('reports/sales.csv', { rows: 5 });
  * const stream = await connector.read('reports/sales.csv');
  * await connector.disconnect();
  * ```
  */
-export class GCSConnector implements FileConnector<GCSAuth> {
+export class GoogleCloudStorageConnector implements FileConnector<GoogleCloudStorageAuth> {
   private readonly bucket: string;
   private readonly prefix?: string;
   private readonly projectId?: string;
@@ -136,7 +140,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   /** Active stream abort controllers for resource cleanup. */
   private activeStreams = new Set<AbortController>();
 
-  constructor(options: GCSOptions) {
+  constructor(options: GoogleCloudStorageOptions) {
     if (!options.bucket || options.bucket.trim() === '') {
       throw new ConnectionError('bucket is required', {
         code: 'VENOMOUS_INVALID_OPTIONS',
@@ -185,7 +189,14 @@ export class GCSConnector implements FileConnector<GCSAuth> {
     this.activeStreams.delete(controller);
   }
 
-  async connect(auth?: GCSAuth): Promise<void> {
+  async connect(auth?: GoogleCloudStorageAuth): Promise<void> {
+    if (!auth) {
+      throw new AuthenticationError(
+        'Google Cloud Storage requires explicit authentication. Provide { credentials: <service-account-json> }.',
+        { code: 'VENOMOUS_AUTH_REQUIRED', connector: CONNECTOR_NAME }
+      );
+    }
+
     const storageOptions = resolveAuth(auth, this.projectId);
 
     this.storage = new Storage(storageOptions);
@@ -206,7 +217,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
       this.bucketHandle = null;
 
       if (err instanceof NotFoundError) throw err;
-      wrapError(err, `Failed to connect to GCS bucket "${this.bucket}"`);
+      wrapError(err, `Failed to connect to Google Cloud Storage bucket "${this.bucket}"`);
     }
 
     // No redactAuth call needed: connector does not store auth reference.
@@ -230,7 +241,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   async files(path?: string, options?: ListOptions): Promise<PageResult<FileInfo>> {
     this.ensureConnected();
 
-    const gcsPrefix = toGCSPrefix(path, this.prefix);
+    const googleCloudStoragePrefix = toGoogleCloudStoragePrefix(path, this.prefix);
     const pageSize = options?.page?.size
       ? validatePageSize(options.page.size).value
       : DEFAULT_PAGE_SIZE;
@@ -249,7 +260,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
 
     try {
       const [files, queryResponse, apiResponse] = await this.bucketHandle!.getFiles({
-        prefix: gcsPrefix || undefined,
+        prefix: googleCloudStoragePrefix || undefined,
         delimiter: '/',
         maxResults: pageSize,
         pageToken,
@@ -262,7 +273,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
       const prefixes = (apiResponse as { prefixes?: string[] })?.prefixes;
       if (prefixes) {
         for (const dirPrefix of prefixes) {
-          const userPath = fromGCSPath(dirPrefix, this.prefix);
+          const userPath = fromGoogleCloudStoragePath(dirPrefix, this.prefix);
           if (!userPath) continue;
           const name = userPath.split('/').filter(Boolean).pop() ?? userPath;
           data.push({
@@ -278,8 +289,8 @@ export class GCSConnector implements FileConnector<GCSAuth> {
       // Files
       for (const file of files) {
         // Skip the prefix itself
-        if (file.name === gcsPrefix) continue;
-        const userPath = fromGCSPath(file.name, this.prefix);
+        if (file.name === googleCloudStoragePrefix) continue;
+        const userPath = fromGoogleCloudStoragePath(file.name, this.prefix);
         if (!userPath) continue;
         const name = userPath.split('/').filter(Boolean).pop() ?? userPath;
         const metadata = file.metadata;
@@ -306,7 +317,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   async peek(path: string, options?: PeekOptions): Promise<PeekResult> {
     this.ensureConnected();
 
-    const gcsPath = toGCSPath(path, this.prefix);
+    const googleCloudStoragePath = toGoogleCloudStoragePath(path, this.prefix);
     let rows = options?.rows ?? DEFAULT_PEEK_ROWS;
     if (rows < 1) rows = 1;
     if (rows > MAX_PEEK_ROWS) rows = MAX_PEEK_ROWS;
@@ -319,7 +330,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
       );
     }
 
-    const file = this.bucketHandle!.file(gcsPath);
+    const file = this.bucketHandle!.file(googleCloudStoragePath);
 
     // Pre-check file size via metadata
     try {
@@ -388,9 +399,9 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   async read(path: string): Promise<ReadableStream<Uint8Array>> {
     this.ensureConnected();
 
-    const gcsPath = toGCSPath(path, this.prefix);
+    const googleCloudStoragePath = toGoogleCloudStoragePath(path, this.prefix);
     const { controller } = this.trackStream();
-    const file = this.bucketHandle!.file(gcsPath);
+    const file = this.bucketHandle!.file(googleCloudStoragePath);
 
     try {
       // Verify file exists before creating stream
@@ -402,7 +413,7 @@ export class GCSConnector implements FileConnector<GCSAuth> {
         });
       }
 
-      // GCS createReadStream returns a Node.js Readable.
+      // Google Cloud Storage createReadStream returns a Node.js Readable.
       // Convert to Web ReadableStream using pull() mode for proper backpressure.
       const nodeStream = file.createReadStream();
 
@@ -450,8 +461,8 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   async stat(path: string): Promise<FileInfo> {
     this.ensureConnected();
 
-    const gcsPath = toGCSPath(path, this.prefix);
-    const file = this.bucketHandle!.file(gcsPath);
+    const googleCloudStoragePath = toGoogleCloudStoragePath(path, this.prefix);
+    const file = this.bucketHandle!.file(googleCloudStoragePath);
     const userPath = path;
     const name = userPath.split('/').pop() ?? userPath;
 
@@ -477,12 +488,12 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   ): Promise<WriteResult> {
     this.ensureConnected();
 
-    const gcsPath = toGCSPath(path, this.prefix);
-    const file = this.bucketHandle!.file(gcsPath);
+    const googleCloudStoragePath = toGoogleCloudStoragePath(path, this.prefix);
+    const file = this.bucketHandle!.file(googleCloudStoragePath);
 
     try {
       if (data instanceof ReadableStream) {
-        // Convert Web ReadableStream to Node.js Readable for GCS SDK.
+        // Convert Web ReadableStream to Node.js Readable for Google Cloud Storage SDK.
         // Use pipeline() instead of pipe() to ensure proper error propagation
         // and automatic cleanup of all streams when any side errors.
         const nodeStream = Readable.fromWeb(data as import('node:stream/web').ReadableStream);
@@ -513,13 +524,13 @@ export class GCSConnector implements FileConnector<GCSAuth> {
   async remove(path: string): Promise<void> {
     this.ensureConnected();
 
-    const gcsPath = toGCSPath(path, this.prefix);
-    const file = this.bucketHandle!.file(gcsPath);
+    const googleCloudStoragePath = toGoogleCloudStoragePath(path, this.prefix);
+    const file = this.bucketHandle!.file(googleCloudStoragePath);
 
     try {
       await file.delete();
     } catch (err) {
-      // GCS throws 404 when deleting non-existent files.
+      // Google Cloud Storage throws 404 when deleting non-existent files.
       // Catch and ignore to maintain idempotent behavior (consistent with S3).
       if (err instanceof Error && (err as { code?: number }).code === 404) {
         return;

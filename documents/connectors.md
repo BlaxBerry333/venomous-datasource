@@ -135,44 +135,48 @@ console.log(result.schema);             // [{ name: 'id', type: 'INTEGER', nulla
 ## Google Cloud Storage
 
 **Type:** File (`FileConnector`)
-**Import:** `venomous-datasource/gcs`
+**Import:** `venomous-datasource/google-cloud-storage`
 **Peer dependencies:** `@google-cloud/storage`
 
 ### Options
 
 | Option      | Type     | Required | Description                                                  |
 | ----------- | -------- | -------- | ------------------------------------------------------------ |
-| `bucket`    | `string` | Yes      | GCS bucket name                                              |
+| `bucket`    | `string` | Yes      | Google Cloud Storage bucket name                             |
 | `prefix`    | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`) |
-| `projectId` | `string` | No       | GCP project ID (SDK infers from ADC if omitted)              |
+| `projectId` | `string` | No       | GCP project ID (overrides project_id in service account credentials) |
 
 ### Authentication
 
+The `type` field is optional (defaults to `'credentials'`):
+
 | Type                    | Fields        | Description                               |
 | ----------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)        | —             | Application Default Credentials (ADC)     |
 | `credentials` (default) | `credentials` | Service account credentials object        |
 
-> The `type` field can be omitted when using `credentials` — it defaults to `'credentials'`.
+> Explicit credentials are required. Calling `connect()` without auth throws `AuthenticationError`.
 
 ### Usage
 
 ```typescript
-import { createGCSConnector } from 'venomous-datasource/gcs';
+import { createGoogleCloudStorageConnector } from 'venomous-datasource/google-cloud-storage';
 
-const connector = createGCSConnector({
+const connector = createGoogleCloudStorageConnector({
   bucket: 'my-bucket',
   prefix: 'data/',
   projectId: 'my-project',
 });
 
-// Auto auth (default)
-await connector.connect();
-
-// Or with explicit service account
-// await connector.connect({
-//   credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
-// });
+// Explicit credentials required
+await connector.connect({
+  // credentials: JSON.parse(readFileSync('/path/to/key.json', 'utf-8')),
+  credentials: {
+    type: 'service_account',
+    project_id: 'my-project',
+    private_key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n',
+    client_email: 'sa@my-project.iam.gserviceaccount.com',
+  },
+});
 ```
 
 #### List files

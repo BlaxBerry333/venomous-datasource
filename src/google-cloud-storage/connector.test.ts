@@ -1,6 +1,7 @@
 import { Readable, PassThrough } from 'node:stream';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GCSConnector } from './connector.js';
+import { GoogleCloudStorageConnector } from './connector.js';
+import type { GoogleCloudStorageAuth } from '../core/index.js';
 import {
   ConnectionError,
   QueryError,
@@ -46,6 +47,11 @@ vi.mock('@google-cloud/storage', () => {
   return { Storage: MockStorage };
 });
 
+/** Shared mock auth for all tests that need a connected connector. */
+const mockAuth: GoogleCloudStorageAuth = {
+  credentials: { type: 'service_account', project_id: 'test-project' },
+};
+
 /** Helper: create a mock Node.js Readable stream from content. */
 function createMockNodeStream(content: string) {
   return new Readable({
@@ -56,12 +62,12 @@ function createMockNodeStream(content: string) {
   });
 }
 
-describe('GCSConnector', () => {
-  let connector: GCSConnector;
+describe('GoogleCloudStorageConnector', () => {
+  let connector: GoogleCloudStorageConnector;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    connector = new GCSConnector({ bucket: 'test-bucket' });
+    connector = new GoogleCloudStorageConnector({ bucket: 'test-bucket' });
   });
 
   afterEach(async () => {
@@ -74,57 +80,65 @@ describe('GCSConnector', () => {
 
   describe('constructor', () => {
     it('throws ConnectionError when bucket is empty', () => {
-      expect(() => new GCSConnector({ bucket: '' })).toThrow(ConnectionError);
+      expect(() => new GoogleCloudStorageConnector({ bucket: '' })).toThrow(ConnectionError);
     });
 
     it('throws ConnectionError when bucket is whitespace', () => {
-      expect(() => new GCSConnector({ bucket: '  ' })).toThrow(ConnectionError);
+      expect(() => new GoogleCloudStorageConnector({ bucket: '  ' })).toThrow(ConnectionError);
     });
 
     it('accepts valid options', () => {
-      const c = new GCSConnector({ bucket: 'my-bucket', prefix: 'data/', projectId: 'proj' });
-      expect(c).toBeInstanceOf(GCSConnector);
+      const c = new GoogleCloudStorageConnector({
+        bucket: 'my-bucket',
+        prefix: 'data/',
+        projectId: 'proj',
+      });
+      expect(c).toBeInstanceOf(GoogleCloudStorageConnector);
     });
   });
 
   describe('connect', () => {
-    it('connects successfully with default auth', async () => {
+    it('connects with credentials auth', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
     });
 
-    it('connects with explicit auto auth', async () => {
-      mockExists.mockResolvedValue([true]);
-      await connector.connect({ type: 'auto' });
+    it('throws AuthenticationError when auth is not provided', async () => {
+      await expect(connector.connect()).rejects.toThrow(AuthenticationError);
+      try {
+        await connector.connect();
+      } catch (err) {
+        expect((err as AuthenticationError).code).toBe('VENOMOUS_AUTH_REQUIRED');
+      }
     });
 
     it('throws NotFoundError when bucket does not exist', async () => {
       mockExists.mockResolvedValue([false]);
-      await expect(connector.connect()).rejects.toThrow(NotFoundError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(NotFoundError);
     });
 
     it('wraps 403 as PermissionError', async () => {
       const error = Object.assign(new Error('Forbidden'), { code: 403 });
       mockExists.mockRejectedValue(error);
-      await expect(connector.connect()).rejects.toThrow(PermissionError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(PermissionError);
     });
 
     it('wraps 401 as AuthenticationError', async () => {
       const error = Object.assign(new Error('Unauthorized'), { code: 401 });
       mockExists.mockRejectedValue(error);
-      await expect(connector.connect()).rejects.toThrow(AuthenticationError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(AuthenticationError);
     });
 
     it('wraps network errors as ConnectionError', async () => {
       mockExists.mockRejectedValue(new Error('ECONNREFUSED'));
-      await expect(connector.connect()).rejects.toThrow(ConnectionError);
+      await expect(connector.connect(mockAuth)).rejects.toThrow(ConnectionError);
     });
   });
 
   describe('disconnect', () => {
     it('resets state', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
       await connector.disconnect();
 
       await expect(connector.files()).rejects.toThrow(ConnectionError);
@@ -132,7 +146,7 @@ describe('GCSConnector', () => {
 
     it('is idempotent (calling disconnect twice does not throw)', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await connector.disconnect();
       await connector.disconnect(); // second call should not throw
@@ -146,7 +160,7 @@ describe('GCSConnector', () => {
 
     it('lists files and directories', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetFiles.mockResolvedValueOnce([
         // files array
@@ -193,7 +207,7 @@ describe('GCSConnector', () => {
 
     it('handles pagination with cursor', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // First page
       mockGetFiles.mockResolvedValueOnce([
@@ -220,9 +234,9 @@ describe('GCSConnector', () => {
     });
 
     it('lists with prefix', async () => {
-      const c = new GCSConnector({ bucket: 'test-bucket', prefix: 'data' });
+      const c = new GoogleCloudStorageConnector({ bucket: 'test-bucket', prefix: 'data' });
       mockExists.mockResolvedValue([true]);
-      await c.connect();
+      await c.connect(mockAuth);
 
       mockGetFiles.mockResolvedValueOnce([
         [{ name: 'data/file.csv', metadata: { size: '100', updated: '2024-01-01T00:00:00Z' } }],
@@ -236,7 +250,7 @@ describe('GCSConnector', () => {
 
     it('handles empty listing', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetFiles.mockResolvedValueOnce([[], {}, {}]);
 
@@ -247,7 +261,7 @@ describe('GCSConnector', () => {
 
     it('handles CJK filenames (preserved, not encoded)', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetFiles.mockResolvedValueOnce([
         [
@@ -273,7 +287,7 @@ describe('GCSConnector', () => {
 
     it('rejects invalid cursor', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.files(undefined, { page: { cursor: 'invalid' } })).rejects.toThrow(
         QueryError
@@ -288,7 +302,7 @@ describe('GCSConnector', () => {
 
     it('peeks CSV file', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '100' }]);
       mockDownload.mockResolvedValueOnce([
@@ -309,7 +323,7 @@ describe('GCSConnector', () => {
 
     it('peeks CSV with quoted fields containing commas', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '50' }]);
       mockDownload.mockResolvedValueOnce([
@@ -325,7 +339,7 @@ describe('GCSConnector', () => {
 
     it('peeks CSV with BOM', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '50' }]);
       mockDownload.mockResolvedValueOnce([Buffer.from('\uFEFFname,value\ntest,1')]);
@@ -336,7 +350,7 @@ describe('GCSConnector', () => {
 
     it('peeks JSON array file', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '100' }]);
       mockDownload.mockResolvedValueOnce([
@@ -359,7 +373,7 @@ describe('GCSConnector', () => {
 
     it('peeks JSONL file', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '80' }]);
       mockDownload.mockResolvedValueOnce([
@@ -372,14 +386,14 @@ describe('GCSConnector', () => {
 
     it('rejects unsupported format', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       await expect(connector.peek('image.png')).rejects.toThrow(QueryError);
     });
 
     it('rejects file larger than 50MB', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: String(60 * 1024 * 1024) }]);
 
@@ -388,7 +402,7 @@ describe('GCSConnector', () => {
 
     it('defaults to 10 rows', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const csvLines = ['id,name'];
       for (let i = 0; i < 20; i++) {
@@ -404,7 +418,7 @@ describe('GCSConnector', () => {
 
     it('clamps rows to max 1000', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '100' }]);
       mockDownload.mockResolvedValueOnce([Buffer.from('id\n1\n2')]);
@@ -415,7 +429,7 @@ describe('GCSConnector', () => {
 
     it('handles empty CSV file', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '0' }]);
       mockDownload.mockResolvedValueOnce([Buffer.from('')]);
@@ -426,7 +440,7 @@ describe('GCSConnector', () => {
 
     it('does not leak file content in JSON parse errors', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([{ size: '50' }]);
       mockDownload.mockResolvedValueOnce([Buffer.from('invalid json content')]);
@@ -451,7 +465,7 @@ describe('GCSConnector', () => {
 
     it('returns a ReadableStream', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockFileExists.mockResolvedValueOnce([true]);
       mockCreateReadStream.mockReturnValueOnce(createMockNodeStream('hello world'));
@@ -467,7 +481,7 @@ describe('GCSConnector', () => {
 
     it('throws NotFoundError when file does not exist', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockFileExists.mockResolvedValueOnce([false]);
 
@@ -476,7 +490,7 @@ describe('GCSConnector', () => {
 
     it('enforces stream limit', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       // Create streams that never close to keep them tracked
       const createHangingStream = () =>
@@ -499,7 +513,7 @@ describe('GCSConnector', () => {
 
     it('cancel() closes the underlying stream reader', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockFileExists.mockResolvedValueOnce([true]);
       mockCreateReadStream.mockReturnValueOnce(createMockNodeStream('data'));
@@ -518,7 +532,7 @@ describe('GCSConnector', () => {
 
     it('returns file info', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockResolvedValueOnce([
         {
@@ -542,7 +556,7 @@ describe('GCSConnector', () => {
 
     it('wraps 404 as NotFoundError', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Not Found'), { code: 404 });
       mockGetMetadata.mockRejectedValueOnce(error);
@@ -558,7 +572,7 @@ describe('GCSConnector', () => {
 
     it('writes string data (calculates size locally)', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockSave.mockResolvedValueOnce(undefined);
 
@@ -571,7 +585,7 @@ describe('GCSConnector', () => {
 
     it('writes Buffer data (calculates size locally)', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockSave.mockResolvedValueOnce(undefined);
 
@@ -581,7 +595,7 @@ describe('GCSConnector', () => {
 
     it('writes ReadableStream data', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const writeStream = new PassThrough();
       mockCreateWriteStream.mockReturnValueOnce(writeStream);
@@ -609,7 +623,7 @@ describe('GCSConnector', () => {
 
     it('deletes a file', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockDelete.mockResolvedValueOnce(undefined);
       await connector.remove!('test.txt');
@@ -617,7 +631,7 @@ describe('GCSConnector', () => {
 
     it('is idempotent (silently handles 404 on delete)', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Not Found'), { code: 404 });
       mockDelete.mockRejectedValueOnce(error);
@@ -628,7 +642,7 @@ describe('GCSConnector', () => {
 
     it('rethrows non-404 errors', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Forbidden'), { code: 403 });
       mockDelete.mockRejectedValueOnce(error);
@@ -640,7 +654,7 @@ describe('GCSConnector', () => {
   describe('error wrapping', () => {
     it('wraps 401 as AuthenticationError', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Unauthorized'), { code: 401 });
       mockGetMetadata.mockRejectedValueOnce(error);
@@ -650,7 +664,7 @@ describe('GCSConnector', () => {
 
     it('wraps 403 as PermissionError (NOT AuthenticationError)', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Forbidden'), { code: 403 });
       mockGetMetadata.mockRejectedValueOnce(error);
@@ -660,7 +674,7 @@ describe('GCSConnector', () => {
 
     it('wraps 404 as NotFoundError', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       const error = Object.assign(new Error('Not Found'), { code: 404 });
       mockGetMetadata.mockRejectedValueOnce(error);
@@ -670,7 +684,7 @@ describe('GCSConnector', () => {
 
     it('wraps network errors as ConnectionError', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockRejectedValueOnce(new Error('ETIMEDOUT'));
 
@@ -679,7 +693,7 @@ describe('GCSConnector', () => {
 
     it('wraps unknown errors as QueryError', async () => {
       mockExists.mockResolvedValue([true]);
-      await connector.connect();
+      await connector.connect(mockAuth);
 
       mockGetMetadata.mockRejectedValueOnce(new Error('Something unexpected'));
 

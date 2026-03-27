@@ -17,9 +17,9 @@
       "import": "./dist/aws-s3/index.js",
       "types": "./dist/aws-s3/index.d.ts"
     },
-    "./gcs": {
-      "import": "./dist/gcs/index.js",
-      "types": "./dist/gcs/index.d.ts"
+    "./google-cloud-storage": {
+      "import": "./dist/google-cloud-storage/index.js",
+      "types": "./dist/google-cloud-storage/index.d.ts"
     },
     "./google-sheets": {
       "import": "./dist/google-sheets/index.js",

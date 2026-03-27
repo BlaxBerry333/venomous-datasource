@@ -21,12 +21,12 @@ src/
 │   ├── auth.ts          # Auth resolution
 │   ├── path.ts          # S3 path utilities
 │   └── types.ts         # AWSS3Options
-├── gcs/                 # GCS connector (venomous-datasource/gcs)
-│   ├── index.ts         # Subpath entry — exports createGCSConnector
+├── google-cloud-storage/ # Google Cloud Storage connector (venomous-datasource/google-cloud-storage)
+│   ├── index.ts         # Subpath entry — exports createGoogleCloudStorageConnector
 │   ├── connector.ts     # FileConnector implementation
 │   ├── auth.ts          # Auth resolution
-│   ├── path.ts          # GCS path utilities
-│   └── types.ts         # GCSOptions
+│   ├── path.ts          # Google Cloud Storage path utilities
+│   └── types.ts         # GoogleCloudStorageOptions
 ├── google-sheets/       # Google Sheets connector (venomous-datasource/google-sheets)
 │   ├── index.ts         # Subpath entry — exports createSheetsConnector
 │   ├── connector.ts     # TabularConnector implementation

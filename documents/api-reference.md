@@ -87,7 +87,7 @@ Extends `DocumentConnector<FirestoreAuth>`. Created via `createFirestoreConnecto
 
 ### FileConnector\<TAuth\>
 
-Interface for file-based data source connectors (e.g., S3, GCS).
+Interface for file-based data source connectors (e.g., AWS S3, Google Cloud Storage).
 
 | Method       | Signature                                            | Description                                  |
 | ------------ | ---------------------------------------------------- | -------------------------------------------- |
@@ -108,7 +108,7 @@ Interface for file-based data source connectors (e.g., S3, GCS).
 
 ### Authentication
 
-Most connectors support `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery, AWS S3, and Azure Blob Storage require explicit authentication.
+Some connectors support `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery, AWS S3, Google Cloud Storage, and Azure Blob Storage require explicit authentication.
 
 ```typescript
 // ── Google Cloud ──
@@ -116,9 +116,7 @@ Most connectors support `{ type: 'auto' }`, which delegates to the native SDK's 
 // BigQuery (explicit auth required, type is optional)
 type BigQueryAuth = { type?: 'credentials'; credentials: object };
 
-type GCSAuth =
-  | { type: 'auto' }
-  | { type?: 'credentials'; credentials: object };
+type GoogleCloudStorageAuth = { type?: 'credentials'; credentials: object };
 
 type SheetsAuth =
   | { type: 'auto' }
@@ -282,7 +280,7 @@ VenomousError
 | Property    | Type       | Description                                                 |
 | ----------- | ---------- | ----------------------------------------------------------- |
 | `code`      | `string`   | Machine-readable code (e.g., `VENOMOUS_AUTH_FAILED`)        |
-| `connector` | `string?`  | Connector that produced the error (`bigquery`, `s3`, `gcs`, `google-sheets`, `firestore`, `azure-blob-storage`) |
+| `connector` | `string?`  | Connector that produced the error (`bigquery`, `aws-s3`, `google-cloud-storage`, `google-sheets`, `firestore`, `azure-blob-storage`, `mongodb`) |
 | `message`   | `string`   | Human-readable description                                  |
 | `cause`     | `unknown?` | Original error from the underlying SDK                      |
 

@@ -6,7 +6,7 @@ import type { FileInfo, PeekResult, WriteResult } from '../types/result.js';
 /**
  * Interface for file-based data source connectors.
  *
- * Implementations: S3, GCS, future Azure Blob.
+ * Implementations: AWS S3, Google Cloud Storage, Azure Blob Storage.
  *
  * @typeParam TAuth - Authentication type, must extend FileAuth.
  *
@@ -22,8 +22,9 @@ import type { FileInfo, PeekResult, WriteResult } from '../types/result.js';
 export interface FileConnector<TAuth extends FileAuth = FileAuth> {
   /**
    * Connect to the storage service and initialize the client.
-   * If no auth is provided, defaults to `{ type: 'auto' }` for most connectors.
-   * Some connectors (e.g., AWS S3) require explicit auth and will throw
+   * Some connectors (e.g., Google Sheets, Firestore, MongoDB) default to
+   * `{ type: 'auto' }` when no auth is provided. Others (AWS S3, Google Cloud
+   * Storage, Azure Blob Storage) require explicit auth and will throw
    * `AuthenticationError` if auth is not provided.
    *
    * @param auth - Authentication configuration.

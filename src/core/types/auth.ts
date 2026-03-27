@@ -9,16 +9,19 @@ export type BigQueryAuth = {
 };
 
 /**
- * GCS authentication options (discriminated union).
+ * Google Cloud Storage authentication options.
+ *
+ * Auto auth is not supported — explicit credentials are required.
  * The `type` field can be omitted (defaults to `'credentials'`).
  */
-export type GCSAuth =
-  | { readonly type: 'auto' }
-  | { readonly type?: 'credentials'; readonly credentials: object };
+export type GoogleCloudStorageAuth = {
+  readonly type?: 'credentials';
+  readonly credentials: object;
+};
 
 /**
  * Google Sheets authentication options (discriminated union).
- * Same auth modes as GCS (Google service account based).
+ * Same auth modes as Google Cloud Storage (Google service account based).
  * The `type` field can be omitted (defaults to `'credentials'`).
  */
 export type SheetsAuth =
@@ -27,7 +30,7 @@ export type SheetsAuth =
 
 /**
  * Firebase Firestore authentication options (discriminated union).
- * Same auth modes as BigQuery/GCS/Sheets (Google service account based).
+ * Same auth modes as BigQuery/Google Cloud Storage/Sheets (Google service account based).
  * The `type` field can be omitted (defaults to `'credentials'`).
  */
 export type FirestoreAuth =
@@ -83,7 +86,7 @@ export type TabularAuth = BigQueryAuth | SheetsAuth;
 /**
  * Union of all file data source auth types.
  */
-export type FileAuth = AWSS3Auth | GCSAuth | AzureBlobStorageAuth;
+export type FileAuth = AWSS3Auth | GoogleCloudStorageAuth | AzureBlobStorageAuth;
 
 /**
  * Union of all document data source auth types.

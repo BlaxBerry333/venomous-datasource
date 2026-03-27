@@ -81,10 +81,10 @@ describe('AuthenticationError', () => {
   it('should accept custom code', () => {
     const error = new AuthenticationError('expired', {
       code: 'VENOMOUS_AUTH_EXPIRED',
-      connector: 'gcs',
+      connector: 'google-cloud-storage',
     });
     expect(error.code).toBe('VENOMOUS_AUTH_EXPIRED');
-    expect(error.connector).toBe('gcs');
+    expect(error.connector).toBe('google-cloud-storage');
   });
 });
 

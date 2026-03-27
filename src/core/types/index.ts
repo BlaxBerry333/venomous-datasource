@@ -1,6 +1,6 @@
 export type {
   BigQueryAuth,
-  GCSAuth,
+  GoogleCloudStorageAuth,
   SheetsAuth,
   FirestoreAuth,
   AWSS3Auth,
