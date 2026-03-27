@@ -1,5 +1,5 @@
 export type { BigQueryAuth } from '../core/index.js';
-export type { BigQueryOptions, ProjectInfo, DatasetInfo } from './types.js';
+export type { BigQueryOptions, ProjectInfo, DatasetInfo, DryRunResult } from './types.js';
 export { BigQueryConnector } from './connector.js';
 
 import { BigQueryConnector } from './connector.js';
@@ -29,7 +29,7 @@ import type { BigQueryOptions } from './types.js';
  * const explorer = createBigQueryConnector();
  * await explorer.connect({ credentials: {...} });
  * const datasets = await explorer.datasets();
- * explorer.useDataset(datasets[0].datasetId);
+ * await explorer.useDataset(datasets[0].datasetId);
  * const tables2 = await explorer.tables();
  * await explorer.disconnect();
  * ```

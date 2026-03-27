@@ -32,7 +32,8 @@ Extends `TabularConnector<BigQueryAuth>` with resource exploration methods. Crea
 | ------------ | ----------------------------------------------- | ----------------------------------------------------------------------- |
 | `projects`   | `() => Promise<ProjectInfo[]>`                  | List accessible GCP projects (ACTIVE only). Requires `@google-cloud/resource-manager` |
 | `datasets`   | `(projectId?) => Promise<DatasetInfo[]>`         | List BigQuery datasets in current or specified project                   |
-| `useDataset` | `(datasetId: string) => void`                   | Switch dataset for subsequent table operations. Clears schema cache      |
+| `useDataset` | `(datasetId: string) => Promise<void>`          | Switch dataset for subsequent table operations. Validates dataset exists. Clears schema cache |
+| `dryRun`     | `(sql: string, params?: unknown[]) => Promise<DryRunResult>` | Validate SQL and estimate scan cost without executing. Returns `{ totalBytesProcessed, schema }` |
 
 > `connect()` is idempotent — calling it again will disconnect first, then reconnect. When `projectId` is omitted from options, it is inferred from the auth credentials (service account key file or credentials object).
 
@@ -225,6 +226,11 @@ interface ProjectInfo {
 interface DatasetInfo {
   readonly datasetId: string; // Dataset ID
   readonly location?: string; // Geographic location (e.g., 'US')
+}
+
+interface DryRunResult {
+  readonly totalBytesProcessed: number; // Estimated bytes scanned (0 = no cost)
+  readonly schema: ColumnInfo[]; // Result columns with types
 }
 
 interface FileInfo {

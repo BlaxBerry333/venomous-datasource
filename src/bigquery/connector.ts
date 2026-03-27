@@ -29,7 +29,7 @@ import {
   decodeCursor,
 } from '../core/index.js';
 import { resolveAuth, resolveProjectId } from './auth.js';
-import type { BigQueryOptions, ProjectInfo, DatasetInfo } from './types.js';
+import type { BigQueryOptions, ProjectInfo, DatasetInfo, DryRunResult } from './types.js';
 
 const CONNECTOR_NAME = 'bigquery';
 const DEFAULT_PEEK_ROWS = 10;
@@ -296,7 +296,7 @@ function mapSchemaFields(
  * const explorer = createBigQueryConnector();
  * await explorer.connect({ credentials: {...} });
  * const datasets = await explorer.datasets();
- * explorer.useDataset('my_dataset');
+ * await explorer.useDataset('my_dataset');
  * const tables2 = await explorer.tables();
  *
  * await connector.disconnect();
@@ -435,9 +435,13 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
       this.dataset = this.client.dataset(this.datasetId);
     }
 
-    // Validate connection with a lightweight query
+    // Validate connection with a zero-cost dry-run (no slot, no billing)
     try {
-      await this.client.query({ query: 'SELECT 1', location: this.options.location });
+      await this.client.createQueryJob({
+        query: 'SELECT 1',
+        dryRun: true,
+        location: this.options.location,
+      });
     } catch (err) {
       this.client = null;
       this.dataset = null;
@@ -457,6 +461,37 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
         'Could not determine projectId. Pass projectId in options, provide a service account key, or set GOOGLE_CLOUD_PROJECT environment variable.',
         { code: 'VENOMOUS_NO_PROJECT', connector: CONNECTOR_NAME }
       );
+    }
+
+    // Verify dataset existence after connection validation and projectId confirmation
+    if (this.dataset) {
+      try {
+        const [exists] = await this.dataset.exists();
+        if (!exists) {
+          const dsId = this.datasetId;
+          const projId = this.projectId;
+          this.client = null;
+          this.dataset = null;
+          this.datasetId = undefined;
+          this.projectId = undefined;
+          this.authOptions = undefined;
+          throw new NotFoundError(`Dataset "${dsId}" not found in project "${projId}"`, {
+            code: 'VENOMOUS_NOT_FOUND',
+            connector: CONNECTOR_NAME,
+          });
+        }
+      } catch (err) {
+        if (err instanceof NotFoundError) {
+          throw err;
+        }
+        const dsId = this.datasetId;
+        this.client = null;
+        this.dataset = null;
+        this.datasetId = undefined;
+        this.projectId = undefined;
+        this.authOptions = undefined;
+        wrapError(err, `Failed to verify dataset "${dsId}"`);
+      }
     }
 
     this.connected = true;
@@ -488,11 +523,11 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
    * await connector.connect({ credentials: {...} });
    *
    * const datasets = await connector.datasets();
-   * connector.useDataset(datasets[0].datasetId);
+   * await connector.useDataset(datasets[0].datasetId);
    * const tables = await connector.tables();
    * ```
    */
-  useDataset(datasetId: string): void {
+  async useDataset(datasetId: string): Promise<void> {
     this.ensureConnected();
 
     if (!datasetId) {
@@ -502,9 +537,71 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
       });
     }
 
+    const ds = this.client!.dataset(datasetId);
+
+    try {
+      const [exists] = await ds.exists();
+      if (!exists) {
+        throw new NotFoundError(`Dataset "${datasetId}" not found in project "${this.projectId}"`, {
+          code: 'VENOMOUS_NOT_FOUND',
+          connector: CONNECTOR_NAME,
+        });
+      }
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        throw err;
+      }
+      wrapError(err, `Failed to verify dataset "${datasetId}"`);
+    }
+
     this.datasetId = datasetId;
-    this.dataset = this.client!.dataset(datasetId);
+    this.dataset = ds;
     this.schemaCache.clear();
+  }
+
+  /**
+   * Validate a SQL query without executing it.
+   *
+   * Uses BigQuery's dry-run mode to check syntax, resolve schema, and estimate
+   * the amount of data that would be scanned. No slot is consumed and no billing
+   * is incurred.
+   *
+   * @param sql - The SQL query to validate.
+   * @param params - Optional positional parameters (`?` placeholders).
+   * @returns Estimated scan size and result schema.
+   * @throws {ConnectionError} if not connected.
+   * @throws {QueryError} if SQL is invalid or parameter count mismatches.
+   *
+   * @example
+   * ```typescript
+   * const result = await connector.dryRun('SELECT * FROM `project.dataset.table` WHERE id = ?', [1]);
+   * console.log(result.totalBytesProcessed); // e.g. 1048576
+   * console.log(result.schema); // [{ name: 'id', type: 'INTEGER', nullable: false }, ...]
+   * ```
+   */
+  async dryRun(sql: string, params?: unknown[]): Promise<DryRunResult> {
+    this.ensureConnected();
+
+    const converted = this.convertPositionalParams(sql, params);
+
+    try {
+      const [, apiResponse] = await this.client!.createQueryJob({
+        query: converted.query,
+        params: converted.params,
+        dryRun: true,
+        location: this.options.location,
+      });
+
+      const stats = apiResponse?.statistics?.query;
+      const totalBytesProcessed = stats?.totalBytesProcessed
+        ? Number(stats.totalBytesProcessed)
+        : 0;
+      const schema = mapSchemaFields(stats?.schema as Parameters<typeof mapSchemaFields>[0]);
+
+      return { totalBytesProcessed, schema };
+    } catch (err) {
+      wrapError(err, 'Failed to dry-run query');
+    }
   }
 
   /**
@@ -771,7 +868,76 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
     }
   }
 
+  /**
+   * Convert positional `?` placeholders to BigQuery named parameters (`@p0`, `@p1`, ...).
+   *
+   * Skips `?` characters inside single-quoted SQL string literals.
+   *
+   * @throws {QueryError} if placeholder count does not match params length.
+   */
+  private convertPositionalParams(
+    query: string,
+    params?: unknown[]
+  ): { query: string; params: Record<string, unknown> } {
+    if (!params || params.length === 0) {
+      return { query, params: {} };
+    }
+
+    const namedParams: Record<string, unknown> = {};
+    let paramIndex = 0;
+
+    // Simple lexical scan: replace `?` placeholders while skipping
+    // characters inside single-quoted SQL string literals.
+    const chars = [...query];
+    const parts: string[] = [];
+    let i = 0;
+
+    while (i < chars.length) {
+      if (chars[i] === "'") {
+        // Inside a single-quoted string literal -- copy verbatim until
+        // the closing quote (handling escaped quotes '' per SQL standard).
+        parts.push(chars[i]!);
+        i++;
+        while (i < chars.length) {
+          parts.push(chars[i]!);
+          if (chars[i] === "'" && chars[i + 1] === "'") {
+            // Escaped quote
+            parts.push(chars[i + 1]!);
+            i += 2;
+          } else if (chars[i] === "'") {
+            i++;
+            break;
+          } else {
+            i++;
+          }
+        }
+      } else if (chars[i] === '?') {
+        const name = `p${paramIndex}`;
+        namedParams[name] = params[paramIndex];
+        paramIndex++;
+        parts.push(`@${name}`);
+        i++;
+      } else {
+        parts.push(chars[i]!);
+        i++;
+      }
+    }
+
+    const processedQuery = parts.join('');
+
+    // Validate that placeholder count matches params length
+    if (paramIndex !== params.length) {
+      throw new QueryError(
+        `Parameter count mismatch: query contains ${paramIndex} placeholder(s) but ${params.length} parameter(s) were provided.`,
+        { code: 'VENOMOUS_PARAM_MISMATCH', connector: CONNECTOR_NAME }
+      );
+    }
+
+    return { query: processedQuery, params: namedParams };
+  }
+
   sql(query: string, params?: unknown[]): AsyncIterable<Row> {
+    const convertParams = (q: string, p?: unknown[]) => this.convertPositionalParams(q, p);
     const ensureConnected = () => this.ensureConnected();
     const getClient = () => this.client!;
     const { location } = this.options;
@@ -779,60 +945,7 @@ export class BigQueryConnector implements TabularConnector<BigQueryAuth> {
     async function* generate(): AsyncGenerator<Row> {
       ensureConnected();
 
-      // Convert positional params (?) to named params (@p0, @p1, ...) for BigQuery
-      const namedParams: Record<string, unknown> = {};
-      let processedQuery = query;
-
-      if (params && params.length > 0) {
-        let paramIndex = 0;
-
-        // Simple lexical scan: replace `?` placeholders while skipping
-        // characters inside single-quoted SQL string literals.
-        const chars = [...query];
-        const parts: string[] = [];
-        let i = 0;
-
-        while (i < chars.length) {
-          if (chars[i] === "'") {
-            // Inside a single-quoted string literal -- copy verbatim until
-            // the closing quote (handling escaped quotes '' per SQL standard).
-            parts.push(chars[i]!);
-            i++;
-            while (i < chars.length) {
-              parts.push(chars[i]!);
-              if (chars[i] === "'" && chars[i + 1] === "'") {
-                // Escaped quote
-                parts.push(chars[i + 1]!);
-                i += 2;
-              } else if (chars[i] === "'") {
-                i++;
-                break;
-              } else {
-                i++;
-              }
-            }
-          } else if (chars[i] === '?') {
-            const name = `p${paramIndex}`;
-            namedParams[name] = params[paramIndex];
-            paramIndex++;
-            parts.push(`@${name}`);
-            i++;
-          } else {
-            parts.push(chars[i]!);
-            i++;
-          }
-        }
-
-        processedQuery = parts.join('');
-
-        // Validate that placeholder count matches params length
-        if (paramIndex !== params.length) {
-          throw new QueryError(
-            `Parameter count mismatch: query contains ${paramIndex} placeholder(s) but ${params.length} parameter(s) were provided.`,
-            { code: 'VENOMOUS_PARAM_MISMATCH', connector: CONNECTOR_NAME }
-          );
-        }
-      }
+      const { query: processedQuery, params: namedParams } = convertParams(query, params);
 
       try {
         const [job] = await getClient().createQueryJob({

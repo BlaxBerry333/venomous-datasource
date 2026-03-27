@@ -77,7 +77,7 @@ const datasets = await connector.datasets();
 // [{ datasetId: 'my_dataset', location: 'US' }, ...]
 
 // Select a dataset to enable table operations
-connector.useDataset('my_dataset');
+await connector.useDataset('my_dataset');
 // ... use tables(), peek(), find(), etc.
 await connector.disconnect();
 ```
@@ -120,6 +120,14 @@ console.log(result.nextCursor); // pass to next request
 for await (const row of connector.sql('SELECT name, email FROM users WHERE age > ?', [18])) {
   console.log(row);
 }
+```
+
+#### Dry run (validate SQL & estimate cost)
+
+```typescript
+const result = await connector.dryRun('SELECT * FROM large_table WHERE created_at > ?', ['2024-01-01']);
+console.log(result.totalBytesProcessed); // e.g. 1073741824 (1 GB)
+console.log(result.schema);             // [{ name: 'id', type: 'INTEGER', nullable: true }, ...]
 ```
 
 ---

@@ -31,3 +31,14 @@ export interface DatasetInfo {
   /** Geographic location of the dataset (e.g., 'US', 'asia-northeast1'). */
   readonly location?: string;
 }
+
+/**
+ * Result of a BigQuery dry-run query.
+ * Contains estimated scan size and result schema without executing the query.
+ */
+export interface DryRunResult {
+  /** Estimated bytes that would be scanned by the query. */
+  readonly totalBytesProcessed: number;
+  /** Result schema (column names and types). */
+  readonly schema: import('../core/index.js').ColumnInfo[];
+}

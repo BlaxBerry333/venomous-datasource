@@ -58,7 +58,7 @@ await connector.connect({
 });
 
 const datasets = await connector.datasets();
-connector.useDataset(datasets[0].datasetId);
+await connector.useDataset(datasets[0].datasetId);
 
 const tables = await connector.tables();
 const preview = await connector.peek(tables[0].name, { pageSize: 5 });
