@@ -37,7 +37,7 @@ import type {
 export interface DocumentConnector<TAuth extends DocumentAuth = DocumentAuth> {
   /**
    * Connect to the document database and initialize the client.
-   * If no auth is provided, defaults to `{ type: 'auto' }`.
+   * If no auth is provided, behavior depends on the connector implementation.
    * Idempotent: if already connected, disconnects first then reconnects.
    *
    * @param auth - Authentication configuration.

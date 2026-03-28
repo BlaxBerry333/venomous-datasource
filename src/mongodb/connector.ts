@@ -58,7 +58,7 @@ interface CursorTaggedValue {
  * import { createMongoDBConnector } from 'venomous-datasource/mongodb';
  *
  * const connector = createMongoDBConnector({ database: 'mydb' });
- * await connector.connect({ type: 'auto' });
+ * await connector.connect();
  *
  * const collections = await connector.collections();
  * const preview = await connector.peek('users', { rows: 5 });
@@ -82,7 +82,7 @@ export class MongoDBConnector implements DocumentConnector<MongoDBAuth> {
    * Connect to MongoDB and initialize the client.
    * Idempotent: if already connected, disconnects first then reconnects.
    *
-   * @param auth - Authentication configuration. Defaults to `{ type: 'auto' }`.
+   * @param auth - Authentication configuration. When omitted, connects to localhost:27017.
    * @throws {ConnectionError} When mongodb SDK is not installed or connection fails.
    * @throws {AuthenticationError} When credentials are invalid.
    */

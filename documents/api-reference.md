@@ -28,11 +28,11 @@ Interface for tabular (structured) data source connectors (e.g., BigQuery).
 
 Extends `TabularConnector<BigQueryAuth>` with resource exploration methods. Created via `createBigQueryConnector(options?)` — note that `options` is optional and the return type is `BigQueryConnector` (not `TabularConnector`).
 
-| Method       | Signature                                       | Description                                                             |
-| ------------ | ----------------------------------------------- | ----------------------------------------------------------------------- |
-| `projects`   | `() => Promise<ProjectInfo[]>`                  | List accessible GCP projects (ACTIVE only). Requires `@google-cloud/resource-manager` |
-| `datasets`   | `(projectId?) => Promise<DatasetInfo[]>`         | List BigQuery datasets in current or specified project                   |
-| `useDataset` | `(datasetId: string) => Promise<void>`          | Switch dataset for subsequent table operations. Validates dataset exists. Clears schema cache |
+| Method       | Signature                                                    | Description                                                                                      |
+| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `projects`   | `() => Promise<ProjectInfo[]>`                               | List accessible GCP projects (ACTIVE only). Requires `@google-cloud/resource-manager`            |
+| `datasets`   | `(projectId?) => Promise<DatasetInfo[]>`                     | List BigQuery datasets in current or specified project                                           |
+| `useDataset` | `(datasetId: string) => Promise<void>`                       | Switch dataset for subsequent table operations. Validates dataset exists. Clears schema cache    |
 | `dryRun`     | `(sql: string, params?: unknown[]) => Promise<DryRunResult>` | Validate SQL and estimate scan cost without executing. Returns `{ totalBytesProcessed, schema }` |
 
 > `connect()` is idempotent — calling it again will disconnect first, then reconnect. When `projectId` is omitted from options, it is inferred from the auth credentials (service account key file or credentials object).
@@ -41,10 +41,10 @@ Extends `TabularConnector<BigQueryAuth>` with resource exploration methods. Crea
 
 Extends `TabularConnector<SheetsAuth>`. Created via `createSheetsConnector(options)`. Uses Google Sheets API v4 under the hood.
 
-| Limitation | Details |
-| ---------- | ------- |
-| `sql()`    | Not supported — throws `QueryError` (`VENOMOUS_NOT_SUPPORTED`) |
-| `find()`   | Client-side filtering (loads all rows, filters in memory) |
+| Limitation              | Details                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `sql()`                 | Not supported — throws `QueryError` (`VENOMOUS_NOT_SUPPORTED`)  |
+| `find()`                | Client-side filtering (loads all rows, filters in memory)       |
 | `update()` / `remove()` | Locate rows by client-side matching, then operate by row number |
 
 > Schema types are inferred from cell values (100-row sampling): `NUMBER`, `BOOLEAN`, `DATE`, `STRING`. All columns have `nullable: true`.
@@ -53,21 +53,22 @@ Extends `TabularConnector<SheetsAuth>`. Created via `createSheetsConnector(optio
 
 Interface for document-based data source connectors (e.g., Firestore, future MongoDB/DynamoDB).
 
-| Method        | Signature                                                   | Description                                  |
-| ------------- | ----------------------------------------------------------- | -------------------------------------------- |
-| `connect`     | `(auth?: TAuth) => Promise<void>`                           | Connect using provided or `auto` credentials |
-| `disconnect`  | `() => Promise<void>`                                       | Release all resources                        |
-| `collections` | `() => Promise<CollectionInfo[]>`                           | List available collections                   |
-| `peek`        | `(collection, options?) => Promise<DocPeekResult>`          | Preview first N documents                    |
-| `getById`     | `(collection, id) => Promise<Document \| undefined>`        | Get a single document by ID                  |
-| `find`        | `(collection, options?) => Promise<PageResult<Document>>`   | Query with server-side filtering             |
-| `insert` \*   | `(collection, docs) => Promise<DocInsertResult>`            | Insert documents                             |
-| `update` \*   | `(collection, options) => Promise<DocUpdateResult>`         | Update documents matching filter             |
-| `remove` \*   | `(collection, options) => Promise<DocDeleteResult>`         | Delete documents matching filter             |
+| Method        | Signature                                                 | Description                                  |
+| ------------- | --------------------------------------------------------- | -------------------------------------------- |
+| `connect`     | `(auth?: TAuth) => Promise<void>`                         | Connect using provided or `auto` credentials |
+| `disconnect`  | `() => Promise<void>`                                     | Release all resources                        |
+| `collections` | `() => Promise<CollectionInfo[]>`                         | List available collections                   |
+| `peek`        | `(collection, options?) => Promise<DocPeekResult>`        | Preview first N documents                    |
+| `getById`     | `(collection, id) => Promise<Document \| undefined>`      | Get a single document by ID                  |
+| `find`        | `(collection, options?) => Promise<PageResult<Document>>` | Query with server-side filtering             |
+| `insert` \*   | `(collection, docs) => Promise<DocInsertResult>`          | Insert documents                             |
+| `update` \*   | `(collection, options) => Promise<DocUpdateResult>`       | Update documents matching filter             |
+| `remove` \*   | `(collection, options) => Promise<DocDeleteResult>`       | Delete documents matching filter             |
 
 > \* Optional — connectors may omit if the data source is read-only.
 
 Key differences from `TabularConnector`:
+
 - No `sql()` method — document databases don't support SQL
 - Uses `Document = { id, data }` instead of `Row` — ID is metadata, not a column
 - Uses `DocFilter` / `DocFilterOperator` instead of `WhereClause` — no `like` operator
@@ -77,10 +78,10 @@ Key differences from `TabularConnector`:
 
 Extends `DocumentConnector<FirestoreAuth>`. Created via `createFirestoreConnector(options?)`.
 
-| Limitation     | Details |
-| -------------- | ------- |
-| `in`           | Maximum 30 values per query (Firestore limit) |
-| `find()`       | Server-side filtering; complex queries may require composite indexes |
+| Limitation              | Details                                                                    |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `in`                    | Maximum 30 values per query (Firestore limit)                              |
+| `find()`                | Server-side filtering; complex queries may require composite indexes       |
 | `update()` / `remove()` | Query-then-modify pattern; empty filter rejected (`VENOMOUS_EMPTY_FILTER`) |
 
 > Field types inferred from sampled documents: `STRING`, `NUMBER`, `BOOLEAN`, `TIMESTAMP`, `GEOPOINT`, `REFERENCE`, `BYTES`, `ARRAY`, `MAP`. Documents are written in batches of 500.
@@ -89,15 +90,15 @@ Extends `DocumentConnector<FirestoreAuth>`. Created via `createFirestoreConnecto
 
 Interface for file-based data source connectors (e.g., AWS S3, Google Cloud Storage).
 
-| Method       | Signature                                            | Description                                  |
-| ------------ | ---------------------------------------------------- | -------------------------------------------- |
-| `connect`    | `(auth?: TAuth) => Promise<void>`                    | Connect using provided or `auto` credentials |
-| `disconnect` | `() => Promise<void>`                                | Release all resources                        |
-| `files`      | `(path?, options?) => Promise<PageResult<FileInfo>>` | List files with pagination                   |
-| `peek`       | `(path, options?) => Promise<PeekResult>`            | Preview CSV/JSON content (first N rows)      |
-| `read`       | `(path) => Promise<ReadableStream<Uint8Array>>`      | Read file as stream                          |
-| `stat`       | `(path) => Promise<FileInfo>`                        | Get file metadata                            |
-| `write` \*   | `(path, data) => Promise<WriteResult>`               | Write data to file                           |
+| Method       | Signature                                            | Description                                                         |
+| ------------ | ---------------------------------------------------- | ------------------------------------------------------------------- |
+| `connect`    | `(auth?: TAuth) => Promise<void>`                    | Connect using provided or `auto` credentials                        |
+| `disconnect` | `() => Promise<void>`                                | Release all resources                                               |
+| `files`      | `(path?, options?) => Promise<PageResult<FileInfo>>` | List files with pagination                                          |
+| `peek`       | `(path, options?) => Promise<PeekResult>`            | Preview CSV/JSON content (first N rows)                             |
+| `read`       | `(path) => Promise<ReadableStream<Uint8Array>>`      | Read file as stream                                                 |
+| `stat`       | `(path) => Promise<FileInfo>`                        | Get file metadata                                                   |
+| `write` \*   | `(path, data) => Promise<WriteResult>`               | Write data to file                                                  |
 | `remove` \*  | `(path) => Promise<void>`                            | Delete file (idempotent — succeeds silently if file does not exist) |
 
 > \* Optional — connectors may omit if the storage is read-only.
@@ -108,7 +109,7 @@ Interface for file-based data source connectors (e.g., AWS S3, Google Cloud Stor
 
 ### Authentication
 
-Some connectors support `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery, AWS S3, Google Cloud Storage, and Azure Blob Storage require explicit authentication.
+Some connectors support `{ type: 'auto' }`, which delegates to the native SDK's credential chain. BigQuery, AWS S3, Google Cloud Storage, Azure Blob Storage, and MongoDB require explicit authentication (MongoDB defaults to `localhost:27017` when auth is omitted).
 
 ```typescript
 // ── Google Cloud ──
@@ -118,17 +119,18 @@ type BigQueryAuth = { type?: 'credentials'; credentials: object };
 
 type GoogleCloudStorageAuth = { type?: 'credentials'; credentials: object };
 
-type SheetsAuth =
-  | { type: 'auto' }
-  | { type?: 'credentials'; credentials: object };
+type SheetsAuth = { type: 'auto' } | { type?: 'credentials'; credentials: object };
 
-type FirestoreAuth =
-  | { type: 'auto' }
-  | { type?: 'credentials'; credentials: object };
+type FirestoreAuth = { type: 'auto' } | { type?: 'credentials'; credentials: object };
 
 // ── AWS (explicit auth required, type is optional) ──
 
-type AWSS3Auth = { type?: 'access-key'; accessKeyId: string; secretAccessKey: string; region: string };
+type AWSS3Auth = {
+  type?: 'access-key';
+  accessKeyId: string;
+  secretAccessKey: string;
+  region: string;
+};
 
 // ── Azure (explicit auth required) ──
 
@@ -139,9 +141,15 @@ type AzureBlobStorageAuth =
 // ── MongoDB ──
 
 type MongoDBAuth =
-  | { type: 'auto' }
   | { type: 'connection-string'; connectionString: string }
-  | { type: 'credentials'; username: string; password: string; host: string; port?: number; authSource?: string };
+  | {
+      type: 'credentials';
+      username: string;
+      password: string;
+      host: string;
+      port?: number;
+      authSource?: string;
+    };
 ```
 
 ### Pagination
@@ -277,12 +285,12 @@ VenomousError
 
 ### Properties
 
-| Property    | Type       | Description                                                 |
-| ----------- | ---------- | ----------------------------------------------------------- |
-| `code`      | `string`   | Machine-readable code (e.g., `VENOMOUS_AUTH_FAILED`)        |
+| Property    | Type       | Description                                                                                                                                     |
+| ----------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `code`      | `string`   | Machine-readable code (e.g., `VENOMOUS_AUTH_FAILED`)                                                                                            |
 | `connector` | `string?`  | Connector that produced the error (`bigquery`, `aws-s3`, `google-cloud-storage`, `google-sheets`, `firestore`, `azure-blob-storage`, `mongodb`) |
-| `message`   | `string`   | Human-readable description                                  |
-| `cause`     | `unknown?` | Original error from the underlying SDK                      |
+| `message`   | `string`   | Human-readable description                                                                                                                      |
+| `cause`     | `unknown?` | Original error from the underlying SDK                                                                                                          |
 
 ### Usage
 
@@ -318,25 +326,25 @@ Exported from `venomous-datasource/core` for use in custom connectors.
 
 ### Sanitization Utilities
 
-| Function        | Signature                  | Description                               |
-| --------------- | -------------------------- | ----------------------------------------- |
+| Function        | Signature                                                 | Description                               |
+| --------------- | --------------------------------------------------------- | ----------------------------------------- |
 | `redactAuth`    | `(auth: unknown, additionalFields?: string[]) => unknown` | Redact sensitive fields from auth objects |
-| `sanitizeError` | `(error: unknown) => Record<string, unknown>` | Sanitize error for safe logging           |
+| `sanitizeError` | `(error: unknown) => Record<string, unknown>`             | Sanitize error for safe logging           |
 
 ### Pagination Utilities
 
-| Function           | Signature                     | Description                             |
-| ------------------ | ----------------------------- | --------------------------------------- |
-| `validatePageSize` | `(size: number) => { value: number; truncated: boolean }` | Clamp page size to valid range (1–1000) |
-| `encodeCursor`     | `(state: Record<string, unknown>) => string`  | Encode pagination state to opaque cursor string  |
-| `decodeCursor`     | `(cursor: string) => Record<string, unknown>` | Decode an opaque cursor string to pagination state |
+| Function           | Signature                                                 | Description                                        |
+| ------------------ | --------------------------------------------------------- | -------------------------------------------------- |
+| `validatePageSize` | `(size: number) => { value: number; truncated: boolean }` | Clamp page size to valid range (1–1000)            |
+| `encodeCursor`     | `(state: Record<string, unknown>) => string`              | Encode pagination state to opaque cursor string    |
+| `decodeCursor`     | `(cursor: string) => Record<string, unknown>`             | Decode an opaque cursor string to pagination state |
 
 ### Parser Utilities
 
 Shared CSV/JSON parsing functions used by file connectors. Useful for building custom `FileConnector` implementations.
 
-| Function        | Signature                                                        | Description                                                    |
-| --------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
-| `parseCsv`      | `(content: string, maxRows: number) => { columns: ColumnInfo[]; data: Row[] }` | Parse CSV text into structured rows with column metadata       |
-| `parseJson`     | `(content: string, maxRows: number) => { data: Row[] }`         | Parse JSON array or JSONL text into rows (safe — no content leakage on parse errors) |
-| `getFileFormat`  | `(path: string) => 'csv' \| 'json' \| 'jsonl' \| null`          | Detect file format from extension                              |
+| Function        | Signature                                                                      | Description                                                                          |
+| --------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `parseCsv`      | `(content: string, maxRows: number) => { columns: ColumnInfo[]; data: Row[] }` | Parse CSV text into structured rows with column metadata                             |
+| `parseJson`     | `(content: string, maxRows: number) => { data: Row[] }`                        | Parse JSON array or JSONL text into rows (safe — no content leakage on parse errors) |
+| `getFileFormat` | `(path: string) => 'csv' \| 'json' \| 'jsonl' \| null`                         | Detect file format from extension                                                    |

@@ -59,13 +59,13 @@ export type AzureBlobStorageAuth =
 /**
  * MongoDB authentication options (discriminated union).
  *
- * Three modes:
- * - `auto`: Connect to `mongodb://localhost:27017` without authentication (local dev).
+ * Two modes:
  * - `connection-string`: User provides a full MongoDB URI (`mongodb://` or `mongodb+srv://`).
  * - `credentials`: User provides username/password/host, program constructs the URI.
+ *
+ * When omitted (`undefined`), connects to `mongodb://localhost:27017` (local dev).
  */
 export type MongoDBAuth =
-  | { readonly type: 'auto' }
   | { readonly type: 'connection-string'; readonly connectionString: string }
   | {
       readonly type: 'credentials';

@@ -13,19 +13,13 @@ describe('resolveAuth', () => {
     vi.clearAllMocks();
   });
 
-  // ─── auto mode ──────────────────────────────────────────────────────────
+  // ─── default (no auth) ─────────────────────────────────────────────────
 
   it('should return localhost URI when auth is undefined', async () => {
     const { resolveAuth } = await import('./auth.js');
     const result = await resolveAuth(undefined);
     expect(result.uri).toBe('mongodb://localhost:27017');
     expect(result.options).toBeUndefined();
-  });
-
-  it('should return localhost URI when auth type is auto', async () => {
-    const { resolveAuth } = await import('./auth.js');
-    const result = await resolveAuth({ type: 'auto' });
-    expect(result.uri).toBe('mongodb://localhost:27017');
   });
 
   // ─── connection-string mode ─────────────────────────────────────────────
@@ -39,7 +33,7 @@ describe('resolveAuth', () => {
 
   it('should return the URI as-is for connection-string mode with mongodb+srv://', async () => {
     const { resolveAuth } = await import('./auth.js');
-    const uri = 'mongodb+srv://user:pass@cluster.mongodb.net/mydb';
+    const uri = 'mongodb+srv://user:pass@example-cluster.example.net/mydb';
     const result = await resolveAuth({ type: 'connection-string', connectionString: uri });
     expect(result.uri).toBe(uri);
   });

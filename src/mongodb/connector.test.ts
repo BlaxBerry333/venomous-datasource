@@ -141,11 +141,6 @@ describe('MongoDBConnector', () => {
       // No error = success
     });
 
-    it('should connect successfully with explicit auto auth', async () => {
-      mockCommand.mockResolvedValueOnce({ ok: 1 });
-      await connector.connect({ type: 'auto' });
-    });
-
     it('should be idempotent - disconnect before reconnecting', async () => {
       mockCommand.mockResolvedValue({ ok: 1 });
       await connector.connect();
@@ -1499,7 +1494,7 @@ describe('MongoDBConnector', () => {
 
     it('should redact mongodb+srv:// credentials in error messages', async () => {
       const err = new Error(
-        'cannot connect to mongodb+srv://user:p%40ssword@cluster.mongodb.net/db'
+        'cannot connect to mongodb+srv://user:p%40ssword@example-cluster.example.net/db'
       );
       mockCommand.mockRejectedValueOnce(err);
 

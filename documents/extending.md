@@ -13,7 +13,7 @@ The `venomous-datasource/core` module exports everything you need: interfaces, t
 A well-behaved connector must:
 
 1. **Implement `TabularConnector`, `FileConnector`, or `DocumentConnector`** from `venomous-datasource/core`
-2. **Support `{ type: 'auto' }` authentication** — delegate to the native SDK's credential chain (exception: BigQuery, AWS S3, and Azure Blob Storage require explicit auth — see [Connector Guide](connectors.md#bigquery))
+2. **Support `{ type: 'auto' }` authentication** — delegate to the native SDK's credential chain (exception: BigQuery, AWS S3, Azure Blob Storage, and MongoDB require explicit auth — see [Connector Guide](connectors.md#bigquery))
 3. **Wrap native SDK errors as `VenomousError` subclasses** — don't leak raw SDK errors
 4. **Redact credentials** in logs and error output (use the provided `redactAuth()` utility)
 5. **For file connectors:** validate paths with `normalizePath()` / `isPathSafe()` to prevent traversal attacks
@@ -94,7 +94,13 @@ export function createMyConnector(options: MyOptions): TabularConnector<MyAuth> 
 ## Example: File Connector
 
 ```typescript
-import type { FileConnector, ListOptions, PageResult, FileInfo, PeekResult } from 'venomous-datasource/core';
+import type {
+  FileConnector,
+  ListOptions,
+  PageResult,
+  FileInfo,
+  PeekResult,
+} from 'venomous-datasource/core';
 import { PathError, normalizePath, isPathSafe } from 'venomous-datasource/core';
 
 class MyFileConnector implements FileConnector<MyAuth> {
@@ -120,18 +126,18 @@ class MyFileConnector implements FileConnector<MyAuth> {
 
 All utilities are re-exported from `venomous-datasource/core`:
 
-| Utility                  | Purpose                         |
-| ------------------------ | ------------------------------- |
-| `normalizePath(path)`    | Normalize file paths            |
-| `isPathSafe(path)`       | Guard against path traversal    |
-| `encodeCJK(path)`        | NFC-normalize CJK filenames     |
-| `redactAuth(auth, additionalFields?)` | Scrub credentials from objects  |
-| `sanitizeError(error)`   | Safe error serialization        |
-| `validatePageSize(size)` | Clamp to valid range (1–1000)   |
-| `encodeCursor(value)`    | Create opaque pagination cursor |
-| `decodeCursor(cursor)`   | Decode opaque pagination cursor |
-| `parseCsv(content, max)` | Parse CSV text into rows + columns |
-| `parseJson(content, max)`| Parse JSON/JSONL into rows (safe) |
-| `getFileFormat(path)`    | Detect format from file extension |
+| Utility                               | Purpose                            |
+| ------------------------------------- | ---------------------------------- |
+| `normalizePath(path)`                 | Normalize file paths               |
+| `isPathSafe(path)`                    | Guard against path traversal       |
+| `encodeCJK(path)`                     | NFC-normalize CJK filenames        |
+| `redactAuth(auth, additionalFields?)` | Scrub credentials from objects     |
+| `sanitizeError(error)`                | Safe error serialization           |
+| `validatePageSize(size)`              | Clamp to valid range (1–1000)      |
+| `encodeCursor(value)`                 | Create opaque pagination cursor    |
+| `decodeCursor(cursor)`                | Decode opaque pagination cursor    |
+| `parseCsv(content, max)`              | Parse CSV text into rows + columns |
+| `parseJson(content, max)`             | Parse JSON/JSONL into rows (safe)  |
+| `getFileFormat(path)`                 | Detect format from file extension  |
 
 See [API Reference](api-reference.md) for full type signatures.

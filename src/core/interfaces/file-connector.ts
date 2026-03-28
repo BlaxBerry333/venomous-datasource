@@ -22,8 +22,9 @@ import type { FileInfo, PeekResult, WriteResult } from '../types/result.js';
 export interface FileConnector<TAuth extends FileAuth = FileAuth> {
   /**
    * Connect to the storage service and initialize the client.
-   * Some connectors (e.g., Google Sheets, Firestore, MongoDB) default to
-   * `{ type: 'auto' }` when no auth is provided. Others (AWS S3, Google Cloud
+   * Some connectors (e.g., Google Sheets, Firestore) default to
+   * `{ type: 'auto' }` when no auth is provided. MongoDB defaults to
+   * `localhost:27017` when no auth is provided. Others (AWS S3, Google Cloud
    * Storage, Azure Blob Storage) require explicit auth and will throw
    * `AuthenticationError` if auth is not provided.
    *

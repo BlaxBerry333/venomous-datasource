@@ -16,7 +16,7 @@ import type { MongoDBOptions } from './types.js';
  * import { createMongoDBConnector } from 'venomous-datasource/mongodb';
  *
  * const connector = createMongoDBConnector({ database: 'mydb' });
- * await connector.connect({ type: 'auto' });
+ * await connector.connect();
  *
  * const collections = await connector.collections();
  * const preview = await connector.peek('users', { rows: 5 });

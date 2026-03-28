@@ -12,19 +12,19 @@ Detailed usage for each supported data source.
 
 ### Options
 
-| Option      | Type     | Required | Description                                                       |
-| ----------- | -------- | -------- | ----------------------------------------------------------------- |
+| Option      | Type     | Required | Description                                                        |
+| ----------- | -------- | -------- | ------------------------------------------------------------------ |
 | `projectId` | `string` | No       | Google Cloud project ID. Inferred from auth credentials if omitted |
 | `datasetId` | `string` | No       | BigQuery dataset ID. Can be set later via `useDataset()`           |
-| `location`  | `string` | No       | Data location (e.g., `'US'`, `'asia-northeast1'`)                 |
+| `location`  | `string` | No       | Data location (e.g., `'US'`, `'asia-northeast1'`)                  |
 
 ### Authentication
 
 The `type` field is optional (defaults to `'credentials'`):
 
-| Type                       | Fields        | Description                               |
-| -------------------------- | ------------- | ----------------------------------------- |
-| `credentials` (default)    | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                        |
+| ----------------------- | ------------- | ---------------------------------- |
+| `credentials` (default) | `credentials` | Service account credentials object |
 
 ### Usage
 
@@ -125,9 +125,11 @@ for await (const row of connector.sql('SELECT name, email FROM users WHERE age >
 #### Dry run (validate SQL & estimate cost)
 
 ```typescript
-const result = await connector.dryRun('SELECT * FROM large_table WHERE created_at > ?', ['2024-01-01']);
+const result = await connector.dryRun('SELECT * FROM large_table WHERE created_at > ?', [
+  '2024-01-01',
+]);
 console.log(result.totalBytesProcessed); // e.g. 1073741824 (1 GB)
-console.log(result.schema);             // [{ name: 'id', type: 'INTEGER', nullable: true }, ...]
+console.log(result.schema); // [{ name: 'id', type: 'INTEGER', nullable: true }, ...]
 ```
 
 ---
@@ -140,19 +142,19 @@ console.log(result.schema);             // [{ name: 'id', type: 'INTEGER', nulla
 
 ### Options
 
-| Option      | Type     | Required | Description                                                  |
-| ----------- | -------- | -------- | ------------------------------------------------------------ |
-| `bucket`    | `string` | Yes      | Google Cloud Storage bucket name                             |
-| `prefix`    | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`) |
+| Option      | Type     | Required | Description                                                          |
+| ----------- | -------- | -------- | -------------------------------------------------------------------- |
+| `bucket`    | `string` | Yes      | Google Cloud Storage bucket name                                     |
+| `prefix`    | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`)         |
 | `projectId` | `string` | No       | GCP project ID (overrides project_id in service account credentials) |
 
 ### Authentication
 
 The `type` field is optional (defaults to `'credentials'`):
 
-| Type                    | Fields        | Description                               |
-| ----------------------- | ------------- | ----------------------------------------- |
-| `credentials` (default) | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                        |
+| ----------------------- | ------------- | ---------------------------------- |
+| `credentials` (default) | `credentials` | Service account credentials object |
 
 > Explicit credentials are required. Calling `connect()` without auth throws `AuthenticationError`.
 
@@ -222,17 +224,17 @@ console.log(info.size, info.lastModified, info.contentType);
 
 ### Options
 
-| Option          | Type     | Required | Description                                                                      |
-| --------------- | -------- | -------- | -------------------------------------------------------------------------------- |
-| `spreadsheetId` | `string` | Yes      | Spreadsheet ID (from URL: `https://docs.google.com/spreadsheets/d/{id}/...`)     |
+| Option          | Type     | Required | Description                                                                     |
+| --------------- | -------- | -------- | ------------------------------------------------------------------------------- |
+| `spreadsheetId` | `string` | Yes      | Spreadsheet ID (from URL: `https://docs.google.com/spreadsheets/d/{id}/...`)    |
 | `headerRow`     | `number` | No       | Header row number (1-based, default: 1). Set to 0 for no header (A/B/C columns) |
 
 ### Authentication
 
-| Type                    | Fields        | Description                               |
-| ----------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)        | —             | Application Default Credentials (ADC)     |
-| `credentials` (default) | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                           |
+| ----------------------- | ------------- | ------------------------------------- |
+| `auto` (default)        | —             | Application Default Credentials (ADC) |
+| `credentials` (default) | `credentials` | Service account credentials object    |
 
 > The `type` field can be omitted when using `credentials` — it defaults to `'credentials'`.
 
@@ -321,17 +323,17 @@ await connector.remove('Sheet1', {
 
 ### Options
 
-| Option       | Type     | Required | Description                                                                |
-| ------------ | -------- | -------- | -------------------------------------------------------------------------- |
-| `projectId`  | `string` | No       | Google Cloud project ID. Inferred from auth credentials if omitted         |
-| `databaseId` | `string` | No       | Firestore database ID. Defaults to `'(default)'` (multi-database support)  |
+| Option       | Type     | Required | Description                                                               |
+| ------------ | -------- | -------- | ------------------------------------------------------------------------- |
+| `projectId`  | `string` | No       | Google Cloud project ID. Inferred from auth credentials if omitted        |
+| `databaseId` | `string` | No       | Firestore database ID. Defaults to `'(default)'` (multi-database support) |
 
 ### Authentication
 
-| Type                    | Fields        | Description                               |
-| ----------------------- | ------------- | ----------------------------------------- |
-| `auto` (default)        | —             | Application Default Credentials (ADC)     |
-| `credentials` (default) | `credentials` | Service account credentials object        |
+| Type                    | Fields        | Description                           |
+| ----------------------- | ------------- | ------------------------------------- |
+| `auto` (default)        | —             | Application Default Credentials (ADC) |
+| `credentials` (default) | `credentials` | Service account credentials object    |
 
 > The `type` field can be omitted when using `credentials` — it defaults to `'credentials'`.
 
@@ -360,7 +362,7 @@ const collections = await connector.collections();
 
 ```typescript
 const preview = await connector.peek('users', { rows: 5 });
-console.log(preview.data);   // Document[] — [{ id: 'alice', data: { name: 'Alice', age: 30 } }, ...]
+console.log(preview.data); // Document[] — [{ id: 'alice', data: { name: 'Alice', age: 30 } }, ...]
 console.log(preview.fields); // FieldInfo[] — inferred from sampled docs
 ```
 
@@ -386,8 +388,8 @@ const result = await connector.find('users', {
   page: { size: 20 },
 });
 
-console.log(result.data);       // Document[]
-console.log(result.hasMore);    // boolean
+console.log(result.data); // Document[]
+console.log(result.hasMore); // boolean
 console.log(result.nextCursor); // pass to next request
 ```
 
@@ -397,8 +399,8 @@ console.log(result.nextCursor); // pass to next request
 
 ```typescript
 const result = await connector.insert('users', [
-  { id: 'bob', data: { name: 'Bob', age: 25 } },   // explicit ID
-  { data: { name: 'Charlie', age: 35 } },            // auto-generated ID
+  { id: 'bob', data: { name: 'Bob', age: 25 } }, // explicit ID
+  { data: { name: 'Charlie', age: 35 } }, // auto-generated ID
 ]);
 console.log(result.insertedIds); // ['bob', 'auto-generated-id']
 ```
@@ -424,12 +426,12 @@ await connector.remove('users', {
 
 #### Limitations
 
-| Limitation     | Details |
-| -------------- | ------- |
-| No `sql()`     | Not part of `DocumentConnector` interface |
-| No `like`      | Not in `DocFilterOperator` — Firestore has no regex/LIKE capability |
-| `in` max 30    | Firestore limits `in` queries to 30 values |
-| Server-side    | Complex queries may require composite indexes |
+| Limitation  | Details                                                             |
+| ----------- | ------------------------------------------------------------------- |
+| No `sql()`  | Not part of `DocumentConnector` interface                           |
+| No `like`   | Not in `DocFilterOperator` — Firestore has no regex/LIKE capability |
+| `in` max 30 | Firestore limits `in` queries to 30 values                          |
+| Server-side | Complex queries may require composite indexes                       |
 
 ---
 
@@ -451,8 +453,8 @@ await connector.remove('users', {
 
 The `type` field can be omitted (defaults to `'access-key'`).
 
-| Type         | Fields                                     | Description      |
-| ------------ | ------------------------------------------ | ---------------- |
+| Type         | Fields                                     | Description                  |
+| ------------ | ------------------------------------------ | ---------------------------- |
 | `access-key` | `accessKeyId`, `secretAccessKey`, `region` | Static access key (required) |
 
 ### Usage
@@ -523,20 +525,20 @@ console.log(info.size, info.lastModified, info.contentType);
 
 ### Options
 
-| Option        | Type     | Required | Description                                                                  |
-| ------------- | -------- | -------- | ---------------------------------------------------------------------------- |
-| `container`   | `string` | Yes      | Azure Blob container name                                                    |
-| `prefix`      | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`)                 |
-| `accountName` | `string` | No*      | Storage account name. Required for `sas-token` mode                          |
+| Option        | Type     | Required | Description                                                  |
+| ------------- | -------- | -------- | ------------------------------------------------------------ |
+| `container`   | `string` | Yes      | Azure Blob container name                                    |
+| `prefix`      | `string` | No       | Path prefix to restrict operations (e.g., `'data/uploads/'`) |
+| `accountName` | `string` | No\*     | Storage account name. Required for `sas-token` mode          |
 
 > \* `accountName` is extracted automatically for `connection-string` mode.
 
 ### Authentication
 
-| Type                | Fields                          | Description                                           |
-| ------------------- | ------------------------------- | ----------------------------------------------------- |
-| `connection-string` | `connectionString`              | Azure Storage connection string                       |
-| `sas-token`         | `accountName`, `sasToken`       | Shared Access Signature token                         |
+| Type                | Fields                    | Description                     |
+| ------------------- | ------------------------- | ------------------------------- |
+| `connection-string` | `connectionString`        | Azure Storage connection string |
+| `sas-token`         | `accountName`, `sasToken` | Shared Access Signature token   |
 
 ### Usage
 
@@ -600,19 +602,20 @@ console.log(info.size, info.lastModified, info.contentType);
 
 ### Options
 
-| Option                     | Type     | Required | Description                                          |
-| -------------------------- | -------- | -------- | ---------------------------------------------------- |
-| `database`                 | `string` | Yes      | Database name                                        |
-| `connectTimeoutMS`         | `number` | No       | Connection timeout in ms (default: 10000)            |
-| `serverSelectionTimeoutMS` | `number` | No       | Server selection timeout in ms (default: 10000)      |
+| Option                     | Type     | Required | Description                                     |
+| -------------------------- | -------- | -------- | ----------------------------------------------- |
+| `database`                 | `string` | Yes      | Database name                                   |
+| `connectTimeoutMS`         | `number` | No       | Connection timeout in ms (default: 10000)       |
+| `serverSelectionTimeoutMS` | `number` | No       | Server selection timeout in ms (default: 10000) |
 
 ### Authentication
 
-| Type                | Fields                                                        | Description                                          |
-| ------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| `auto` (default)    | —                                                             | Connects to `mongodb://localhost:27017`               |
-| `connection-string` | `connectionString`                                            | Full MongoDB connection string (`mongodb://` or `mongodb+srv://`) |
-| `credentials`       | `username`, `password`, `host`, `port?`, `authSource?`        | Username/password with host. Credentials are URI-encoded automatically |
+| Type                | Fields                                                 | Description                                                            |
+| ------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `connection-string` | `connectionString`                                     | Full MongoDB connection string (`mongodb://` or `mongodb+srv://`)      |
+| `credentials`       | `username`, `password`, `host`, `port?`, `authSource?` | Username/password with host. Credentials are URI-encoded automatically |
+
+> When auth is omitted, connects to `mongodb://localhost:27017` without authentication (local development).
 
 ### Usage
 
@@ -623,13 +626,13 @@ const connector = createMongoDBConnector({
   database: 'mydb',
 });
 
-// Auto auth — connects to localhost:27017
+// No auth — connects to localhost:27017
 await connector.connect();
 
 // Or with connection string
 // await connector.connect({
 //   type: 'connection-string',
-//   connectionString: 'mongodb+srv://user:pass@cluster.mongodb.net',
+//   connectionString: 'mongodb+srv://user:pass@example-cluster.example.net',
 // });
 
 // Or with explicit credentials
@@ -654,7 +657,7 @@ const collections = await connector.collections();
 
 ```typescript
 const preview = await connector.peek('users', { rows: 5 });
-console.log(preview.data);   // Document[] — [{ id: '507f...', data: { name: 'Alice', age: 30 } }, ...]
+console.log(preview.data); // Document[] — [{ id: '507f...', data: { name: 'Alice', age: 30 } }, ...]
 console.log(preview.fields); // FieldInfo[] — inferred from sampled docs
 ```
 
@@ -680,8 +683,8 @@ const result = await connector.find('users', {
   page: { size: 20 },
 });
 
-console.log(result.data);       // Document[]
-console.log(result.hasMore);    // boolean
+console.log(result.data); // Document[]
+console.log(result.hasMore); // boolean
 console.log(result.nextCursor); // pass to next request
 ```
 
@@ -691,8 +694,8 @@ console.log(result.nextCursor); // pass to next request
 
 ```typescript
 const result = await connector.insert('users', [
-  { id: 'custom-id', data: { name: 'Bob', age: 25 } },   // explicit string ID
-  { data: { name: 'Charlie', age: 35 } },                  // auto-generated ObjectId
+  { id: 'custom-id', data: { name: 'Bob', age: 25 } }, // explicit string ID
+  { data: { name: 'Charlie', age: 35 } }, // auto-generated ObjectId
 ]);
 console.log(result.insertedIds); // ['custom-id', '507f...']
 ```
@@ -718,9 +721,9 @@ await connector.remove('users', {
 
 #### Limitations
 
-| Limitation     | Details |
-| -------------- | ------- |
-| No `sql()`     | Not part of `DocumentConnector` interface |
-| No `like`      | Not in `DocFilterOperator` |
-| `in` max 30    | Capped at 30 values per `in` filter |
-| Cursor-based   | Pagination uses type-tagged cursor values, not offset |
+| Limitation   | Details                                               |
+| ------------ | ----------------------------------------------------- |
+| No `sql()`   | Not part of `DocumentConnector` interface             |
+| No `like`    | Not in `DocFilterOperator`                            |
+| `in` max 30  | Capped at 30 values per `in` filter                   |
+| Cursor-based | Pagination uses type-tagged cursor values, not offset |

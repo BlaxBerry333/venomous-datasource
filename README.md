@@ -9,15 +9,15 @@ One consistent API for **tabular**, **document**, and **file-based** data source
 
 ## Supported Data Sources
 
-| Data Source          | Type     | Import Path                              | Required Peer Dependency                                    |
-| -------------------- | -------- | ---------------------------------------- | ----------------------------------------------------------- |
-| BigQuery             | Tabular  | `venomous-datasource/bigquery`           | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |
+| Data Source          | Type     | Import Path                                | Required Peer Dependency                                    |
+| -------------------- | -------- | ------------------------------------------ | ----------------------------------------------------------- |
+| BigQuery             | Tabular  | `venomous-datasource/bigquery`             | `@google-cloud/bigquery` + `@google-cloud/resource-manager` |
 | Google Cloud Storage | File     | `venomous-datasource/google-cloud-storage` | `@google-cloud/storage`                                     |
-| Google Sheets        | Tabular  | `venomous-datasource/google-sheets`      | `googleapis`                                                |
-| Firebase Firestore   | Document | `venomous-datasource/firestore`          | `firebase-admin`                                            |
-| Amazon S3            | File     | `venomous-datasource/aws-s3`             | `@aws-sdk/client-s3`                                        |
-| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage` | `@azure/storage-blob`                                       |
-| MongoDB              | Document | `venomous-datasource/mongodb`            | `mongodb`                                                   |
+| Google Sheets        | Tabular  | `venomous-datasource/google-sheets`        | `googleapis`                                                |
+| Firebase Firestore   | Document | `venomous-datasource/firestore`            | `firebase-admin`                                            |
+| Amazon S3            | File     | `venomous-datasource/aws-s3`               | `@aws-sdk/client-s3`                                        |
+| Azure Blob Storage   | File     | `venomous-datasource/azure-blob-storage`   | `@azure/storage-blob`                                       |
+| MongoDB              | Document | `venomous-datasource/mongodb`              | `mongodb`                                                   |
 
 ## Installation
 
@@ -258,7 +258,7 @@ const connector = createMongoDBConnector({
 
 await connector.connect({
   type: 'connection-string',
-  connectionString: 'mongodb+srv://user:password@cluster.mongodb.net',
+  connectionString: 'mongodb+srv://user:password@example-cluster.example.net',
 });
 
 // List collections

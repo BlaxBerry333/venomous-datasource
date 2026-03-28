@@ -19,14 +19,14 @@ export interface ResolvedAuth {
  * Dynamically imports the `mongodb` SDK to verify it is installed.
  * Throws `ConnectionError` if the SDK is not available.
  *
- * @param auth - Auth configuration (defaults to auto if undefined).
+ * @param auth - Auth configuration. When omitted, connects to localhost:27017.
  * @returns Resolved auth with URI and optional client options.
  * @throws {ConnectionError} When the mongodb SDK is not installed.
  * @throws {AuthenticationError} When the connection string has an invalid prefix.
  *
  * @example
  * ```typescript
- * const resolved = await resolveAuth({ type: 'auto' });
+ * const resolved = await resolveAuth();
  * // { uri: 'mongodb://localhost:27017' }
  *
  * const resolved2 = await resolveAuth({ type: 'connection-string', connectionString: 'mongodb+srv://...' });
@@ -44,7 +44,7 @@ export async function resolveAuth(auth?: MongoDBAuth): Promise<ResolvedAuth> {
     );
   }
 
-  if (!auth || auth.type === 'auto') {
+  if (!auth) {
     return { uri: `mongodb://localhost:${DEFAULT_PORT}` };
   }
 
