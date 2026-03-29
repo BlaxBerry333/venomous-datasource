@@ -7,6 +7,16 @@ const shared: Partial<UserConfig> = {
   target: 'node20',
 };
 
+const connectorModules = [
+  'bigquery',
+  'aws-s3',
+  'google-cloud-storage',
+  'google-sheets',
+  'azure-blob-storage',
+  'firestore',
+  'mongodb',
+] as const;
+
 const config: UserConfig[] = [
   {
     ...shared,
@@ -14,41 +24,14 @@ const config: UserConfig[] = [
     outDir: 'dist/core',
     clean: true,
   },
-  {
-    ...shared,
-    entry: ['src/bigquery/index.ts'],
-    outDir: 'dist/bigquery',
-  },
-  {
-    ...shared,
-    entry: ['src/aws-s3/index.ts'],
-    outDir: 'dist/aws-s3',
-  },
-  {
-    ...shared,
-    entry: ['src/google-cloud-storage/index.ts'],
-    outDir: 'dist/google-cloud-storage',
-  },
-  {
-    ...shared,
-    entry: ['src/google-sheets/index.ts'],
-    outDir: 'dist/google-sheets',
-  },
-  {
-    ...shared,
-    entry: ['src/azure-blob-storage/index.ts'],
-    outDir: 'dist/azure-blob-storage',
-  },
-  {
-    ...shared,
-    entry: ['src/firestore/index.ts'],
-    outDir: 'dist/firestore',
-  },
-  {
-    ...shared,
-    entry: ['src/mongodb/index.ts'],
-    outDir: 'dist/mongodb',
-  },
+  ...connectorModules.map(
+    (mod): UserConfig => ({
+      ...shared,
+      entry: [`src/${mod}/index.ts`],
+      outDir: `dist/${mod}`,
+      external: [/\.\.\/core\//],
+    })
+  ),
 ];
 
 export default config;
